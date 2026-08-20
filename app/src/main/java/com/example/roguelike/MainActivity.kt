@@ -894,6 +894,7 @@ class MainActivity : Activity() {
         private fun newFloor() {
             map = Array(25) { CharArray(17) { '#' } }
 
+            // 部屋を作る
             repeat(13) {
                 val roomWidth = rng.nextInt(3, 8)
                 val roomHeight = rng.nextInt(3, 7)
@@ -907,59 +908,132 @@ class MainActivity : Activity() {
                 }
             }
 
+            // 中央から必ず連続した通路を掘る。
+            // この通路は「開始地点から歩いて行ける領域」を保証する。
             var cx = 8
             var cy = 12
-            repeat(120) {
-                map[cy][cx] = '.'
+            map[cy][cx] = '.'
+
+            repeat(180) {
                 when (rng.nextInt(4)) {
                     0 -> cx = (cx + 1).coerceAtMost(15)
                     1 -> cx = (cx - 1).coerceAtLeast(1)
                     2 -> cy = (cy + 1).coerceAtMost(23)
                     else -> cy = (cy - 1).coerceAtLeast(1)
                 }
+                map[cy][cx] = '.'
             }
 
-            val floorTiles = mutableListOf<Pair<Int, Int>>()
-            for (y in 1..23) {
-                for (x in 1..15) {
-                    if (map[y][x] == '.') floorTiles.add(x to y)
+            // プレイヤーの開始地点は必ずこの連続通路の中央。
+            px = 8
+            py = 12
+            map[py][px] = '.'
+
+            // BFSで「開始地点から実際に歩いて行ける床」だけを取得する。
+            val reachable = mutableSetOf<Pair<Int, Int>>()
+            val queue = java.util.ArrayDeque<Pair<Int, Int>>()
+            val startPos = px to py
+
+            reachable.add(startPos)
+            queue.add(startPos)
+
+            val dirs = arrayOf(
+                1 to 0,
+                -1 to 0,
+                0 to 1,
+                0 to -1
+            )
+
+            while (queue.isNotEmpty()) {
+                val current = queue.removeFirst()
+
+                for (dir in dirs) {
+                    val nx = current.first + dir.first
+                    val ny = current.second + dir.second
+
+                    if (nx !in 1..15 || ny !in 1..23) continue
+                    if (map[ny][nx] == '#') continue
+
+                    val next = nx to ny
+                    if (reachable.add(next)) {
+                        queue.add(next)
+                    }
                 }
             }
 
-            val start = floorTiles.random(rng)
-            px = start.first
-            py = start.second
+            // 階段は「開始地点から到達可能」な床だけから選ぶ。
+            // さらに十分離れた場所を優先する。
+            val farCandidates = reachable
+                .filter { it != startPos }
+                .sortedByDescending {
+                    abs(it.first - px) + abs(it.second - py)
+                }
 
-            val far = floorTiles.maxBy { abs(it.first - px) + abs(it.second - py) }
-            stairX = far.first
-            stairY = far.second
+            val stair = when {
+                farCandidates.size >= 10 -> {
+                    // 最遠点だけに固定せず、遠い範囲からランダムに選ぶ。
+                    farCandidates.take(minOf(20, farCandidates.size)).random(rng)
+                }
+                farCandidates.isNotEmpty() -> farCandidates.first()
+                else -> startPos
+            }
+
+            stairX = stair.first
+            stairY = stair.second
+            map[stairY][stairX] = '.'
 
             traps.clear()
             items.clear()
             enemies.clear()
 
+            // 敵も基本的に到達可能領域から配置。
+            val safeTiles = reachable.filter {
+                it != startPos && it != stair
+            }
+
             repeat(5 + floorNumber) {
-                val candidates = floorTiles.filter {
-                    abs(it.first - px) + abs(it.second - py) > 5
+                val candidates = safeTiles.filter {
+                    abs(it.first - px) + abs(it.second - py) > 5 &&
+                        enemies.none { e -> e.x == it.first && e.y == it.second }
                 }
+
                 val q = candidates.randomOrNull()
                 if (q != null) {
                     enemies.add(
-                        Enemy(q.first, q.second, 5 + floorNumber, rng.nextInt(4))
+                        Enemy(
+                            q.first,
+                            q.second,
+                            5 + floorNumber,
+                            rng.nextInt(4)
+                        )
                     )
                 }
             }
 
             repeat(5) {
-                val q = floorTiles.random(rng)
-                if (q != (px to py) && q != (stairX to stairY)) {
+                val candidates = safeTiles.filter {
+                    it != stair &&
+                        items.none { item -> item.x == it.first && item.y == it.second }
+                }
+                val q = candidates.randomOrNull()
+                if (q != null) {
                     items.add(Item(q.first, q.second, rng.nextInt(5)))
                 }
             }
 
             repeat(4) {
-                traps.add(floorTiles.random(rng))
+                val candidates = safeTiles.filter {
+                    it != stair && !traps.contains(it)
+                }
+                val q = candidates.randomOrNull()
+                if (q != null) {
+                    traps.add(q)
+                }
             }
+
+            // 最終安全確認。
+            // 階段が壁になっていた場合は必ず床へ戻す。
+            map[stairY][stairX] = '.'
 
             invalidate()
         }
