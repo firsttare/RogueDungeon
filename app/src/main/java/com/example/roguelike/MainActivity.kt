@@ -4,9 +4,11 @@ import android.app.Activity
 import android.os.Bundle
 import android.content.Context
 import android.graphics.*
+import android.graphics.Typeface
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.view.MotionEvent
+import android.view.WindowManager
 import android.view.View
 import kotlin.math.abs
 import kotlin.random.Random
@@ -47,7 +49,10 @@ class MainActivity : Activity() {
 
     inner class GameView : View(this@MainActivity) {
         private val rng = Random(System.currentTimeMillis())
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            isDither = true
+            isSubpixelText = true
+        }
         private val prefs = getSharedPreferences("save", Context.MODE_PRIVATE)
         private val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 70)
 
@@ -80,9 +85,241 @@ class MainActivity : Activity() {
         private var gameOver = false
         private var message = ""
 
+        // Visual effects
+        private var effectTime = 0L
+        private var attackFxX = -1
+        private var attackFxY = -1
+        private var attackFxDirX = 0
+        private var attackFxDirY = 0
+        private var damageTexts = mutableListOf<DamageText>()
+        private var pickupText = ""
+        private var pickupX = -1
+        private var pickupY = -1
+        private var pickupStart = 0L
+        private var floorTransition = 0L
+
+        data class DamageText(
+            var x: Float,
+            var y: Float,
+            val damage: Int,
+            val start: Long,
+            val critical: Boolean = false
+        )
+
         private val traps = mutableSetOf<Pair<Int, Int>>()
         private val items = mutableListOf<Item>()
         private val enemies = mutableListOf<Enemy>()
+
+        private fun triggerAttackEffect(x: Int, y: Int, dx: Int, dy: Int) {
+            attackFxX = x
+            attackFxY = y
+            attackFxDirX = dx
+            attackFxDirY = dy
+            effectTime = System.currentTimeMillis()
+            invalidate()
+        }
+
+        private fun showDamage(x: Int, y: Int, damage: Int, critical: Boolean = false) {
+            damageTexts.add(
+                DamageText(
+                    x.toFloat(),
+                    y.toFloat(),
+                    damage,
+                    System.currentTimeMillis(),
+                    critical
+                )
+            )
+            if (damageTexts.size > 12) {
+                damageTexts.removeAt(0)
+            }
+            invalidate()
+        }
+
+        private fun showPickup(text: String, x: Int, y: Int) {
+            pickupText = text
+            pickupX = x
+            pickupY = y
+            pickupStart = System.currentTimeMillis()
+            invalidate()
+        }
+
+        private fun drawAttackEffect(
+            canvas: Canvas,
+            left: Float,
+            top: Float,
+            cell: Float,
+            now: Long
+        ) {
+            if (attackFxX < 0) return
+            val elapsed = now - effectTime
+            if (elapsed > 240L) {
+                attackFxX = -1
+                return
+            }
+
+            val p = (elapsed / 240f).coerceIn(0f, 1f)
+            val cx = left + attackFxX * cell + cell / 2f
+            val cy = top + attackFxY * cell + cell / 2f
+            val tx = cx + attackFxDirX * cell * (0.25f + p * .38f)
+            val ty = cy + attackFxDirY * cell * (0.25f + p * .38f)
+
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = cell * .10f * (1f - p * .35f)
+            paint.color = Color.rgb(255, 220, 90)
+
+            val radius = cell * (.22f + p * .35f)
+            canvas.drawCircle(tx, ty, radius, paint)
+
+            paint.strokeWidth = cell * .045f
+            canvas.drawLine(
+                cx - attackFxDirY * cell * .24f,
+                cy + attackFxDirX * cell * .24f,
+                tx + attackFxDirY * cell * .18f,
+                ty - attackFxDirX * cell * .18f,
+                paint
+            )
+            paint.style = Paint.Style.FILL
+        }
+
+        private fun drawDamageTexts(canvas: Canvas, left: Float, top: Float, cell: Float, now: Long) {
+            val iterator = damageTexts.iterator()
+            while (iterator.hasNext()) {
+                val d = iterator.next()
+                val elapsed = now - d.start
+                if (elapsed > 700L) {
+                    iterator.remove()
+                    continue
+                }
+
+                val p = elapsed / 700f
+                val alpha = ((1f - p) * 255f).toInt().coerceIn(0, 255)
+                val x = left + d.x * cell + cell / 2f
+                val y = top + d.y * cell + cell * (.30f - p * .32f)
+
+                paint.textAlign = Paint.Align.CENTER
+                paint.textSize = if (d.critical) cell * .34f else cell * .27f
+                paint.typeface = Typeface.create(
+                    Typeface.DEFAULT,
+                    Typeface.BOLD
+                )
+                paint.color = Color.argb(
+                    alpha,
+                    if (d.critical) 255 else 255,
+                    if (d.critical) 210 else 235,
+                    if (d.critical) 70 else 120
+                )
+
+                canvas.drawText(
+                    if (d.critical) "${d.damage}!" else d.damage.toString(),
+                    x,
+                    y,
+                    paint
+                )
+            }
+            paint.typeface = Typeface.DEFAULT
+            paint.textAlign = Paint.Align.CENTER
+        }
+
+        private fun drawPickupEffect(
+            canvas: Canvas,
+            left: Float,
+            top: Float,
+            cell: Float,
+            now: Long
+        ) {
+            if (pickupX < 0) return
+            val elapsed = now - pickupStart
+            if (elapsed > 900L) {
+                pickupX = -1
+                return
+            }
+
+            val p = elapsed / 900f
+            val alpha = ((1f - p) * 255f).toInt().coerceIn(0, 255)
+            val x = left + pickupX * cell + cell / 2f
+            val y = top + pickupY * cell + cell * (.25f - p * .35f)
+
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = cell * .25f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            paint.color = Color.argb(alpha, 255, 235, 100)
+            canvas.drawText(pickupText, x, y, paint)
+
+            paint.textSize = cell * .16f
+            paint.color = Color.argb(alpha / 2, 255, 255, 220)
+            canvas.drawText("✦", x - cell * .25f, y - cell * .10f, paint)
+            canvas.drawText("✦", x + cell * .25f, y - cell * .02f, paint)
+            paint.typeface = Typeface.DEFAULT
+        }
+
+        private fun drawEnemyHpBar(
+            canvas: Canvas,
+            left: Float,
+            top: Float,
+            cell: Float,
+            enemy: Enemy
+        ) {
+            val maxEnemyHp = (5 + floorNumber).coerceAtLeast(1)
+            val ratio = (enemy.hp.toFloat() / maxEnemyHp).coerceIn(0f, 1f)
+            val x = left + enemy.x * cell
+            val y = top + enemy.y * cell + cell * .06f
+            val w = cell * .82f
+            val h = maxOf(2f, cell * .075f)
+
+            paint.color = Color.argb(210, 10, 10, 12)
+            canvas.drawRoundRect(
+                x + cell * .09f, y,
+                x + cell * .09f + w, y + h,
+                h, h, paint
+            )
+
+            paint.color = if (ratio > .5f) {
+                Color.rgb(75, 205, 95)
+            } else {
+                Color.rgb(230, 75, 65)
+            }
+
+            canvas.drawRoundRect(
+                x + cell * .09f,
+                y,
+                x + cell * .09f + w * ratio,
+                y + h,
+                h, h, paint
+            )
+        }
+
+        private fun drawFloorTransition(
+            canvas: Canvas,
+            now: Long
+        ) {
+            if (floorTransition <= 0L) return
+            val elapsed = now - floorTransition
+            if (elapsed > 650L) {
+                floorTransition = 0L
+                return
+            }
+
+            val p = (elapsed / 650f).coerceIn(0f, 1f)
+            val alpha = if (p < .5f) {
+                (p * 2f * 180f).toInt()
+            } else {
+                ((1f - p) * 2f * 180f).toInt()
+            }.coerceIn(0, 180)
+
+            paint.color = Color.argb(alpha, 5, 5, 8)
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+
+            paint.color = Color.argb(alpha.coerceAtLeast(60), 255, 220, 100)
+            paint.textSize = minOf(width, height) * .055f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText(
+                "FLOOR $floorNumber",
+                width / 2f,
+                height / 2f,
+                paint
+            )
+            paint.typeface = Typeface.DEFAULT
+        }
 
         override fun onDraw(canvas: Canvas) {
             canvas.drawColor(Color.rgb(5, 6, 9))
@@ -119,6 +356,36 @@ class MainActivity : Activity() {
             )
 
             // Dungeon tiles
+            // Compact dungeon title strip
+            paint.style = Paint.Style.FILL
+            paint.color = Color.rgb(12, 14, 19)
+            canvas.drawRoundRect(
+                left,
+                2f,
+                left + dungeonWidth,
+                top - 7f,
+                6f, 6f, paint
+            )
+            paint.color = Color.rgb(218, 191, 112)
+            paint.textSize = 13f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText(
+                "ROGUE DUNGEON",
+                left + 12f,
+                top - 12f,
+                paint
+            )
+            paint.color = Color.LTGRAY
+            paint.textSize = 11f
+            canvas.drawText(
+                "FLOOR $floorNumber",
+                left + dungeonWidth - 12f,
+                top - 12f,
+                paint.apply { textAlign = Paint.Align.RIGHT }
+            )
+            paint.textAlign = Paint.Align.CENTER
+            paint.typeface = Typeface.DEFAULT
+
             for (y in 0..24) {
                 for (x in 0..16) {
                     val floor = map[y][x] == '.'
@@ -309,20 +576,42 @@ class MainActivity : Activity() {
                 paint
             )
 
+            // Dungeon frame / polished arcade-style border
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 3f
+            paint.color = Color.rgb(118, 105, 74)
+            canvas.drawRect(
+                left - 4f,
+                top - 4f,
+                left + dungeonWidth + 4f,
+                top + dungeonHeight + 4f,
+                paint
+            )
+            paint.strokeWidth = 1f
+            paint.color = Color.rgb(52, 55, 65)
+            canvas.drawRect(
+                left - 8f,
+                top - 8f,
+                left + dungeonWidth + 8f,
+                top + dungeonHeight + 8f,
+                paint
+            )
+            paint.style = Paint.Style.FILL
+
             // EXP bar
             paint.color = Color.rgb(35, 37, 43)
             canvas.drawRoundRect(
-                barLeft, top + 25 * cell + 46,
-                barRight, top + 25 * cell + 52,
+                barLeft, top + dungeonHeight + 58f,
+                barRight, top + dungeonHeight + 64f,
                 3f, 3f, paint
             )
             paint.color = Color.rgb(90, 150, 220)
             val expNeed = (level * 5).coerceAtLeast(1)
             val expRatio = (exp.toFloat() / expNeed).coerceIn(0f, 1f)
             canvas.drawRoundRect(
-                barLeft, top + 25 * cell + 46,
+                barLeft, top + dungeonHeight + 58f,
                 barLeft + barWidth * expRatio,
-                top + 25 * cell + 52,
+                top + dungeonHeight + 64f,
                 3f, 3f, paint
             )
 
@@ -382,7 +671,7 @@ class MainActivity : Activity() {
             canvas.drawText(
                 if (message.isBlank()) "迷宮を探索しよう……" else message,
                 width / 2f,
-                top + 25 * cell + 111,
+                top + dungeonHeight + 117f,
                 paint
             )
 
@@ -639,6 +928,14 @@ class MainActivity : Activity() {
                     )
                 }
             }
+        }
+
+        private fun finishVisualFrame(canvas: Canvas, now: Long) {
+            drawFloorTransition(canvas, now)
+            if (attackFxX >= 0 || damageTexts.isNotEmpty() || pickupX >= 0 || floorTransition > 0L) {
+                postInvalidateOnAnimation()
+            }
+            finishVisualFrame(canvas, now)
         }
 
         private fun drawMenu(canvas: Canvas) {
@@ -1432,6 +1729,7 @@ class MainActivity : Activity() {
 
             if (px == stairX && py == stairY) {
                 floorNumber++
+                floorTransition = System.currentTimeMillis()
                 level++
                 maxHp += 3
                 hp = maxHp
@@ -1446,6 +1744,11 @@ class MainActivity : Activity() {
         private fun attack(enemy: Enemy) {
             val damage = sword + swordPlus
             enemy.hp -= damage
+            val attackDx = (enemy.x - px).coerceIn(-1, 1)
+            val attackDy = (enemy.y - py).coerceIn(-1, 1)
+            triggerAttackEffect(px, py, attackDx, attackDy)
+            showDamage(enemy.x, enemy.y, damage, damage >= 10)
+
             tone.startTone(ToneGenerator.TONE_PROP_ACK, 70)
             message = "攻撃！ $damage ダメージ"
 
