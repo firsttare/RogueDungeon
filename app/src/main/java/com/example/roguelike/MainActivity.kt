@@ -12,6 +12,21 @@ import kotlin.math.abs
 import kotlin.random.Random
 
 class MainActivity : Activity() {
+
+    data class Enemy(
+        var x: Int,
+        var y: Int,
+        var hp: Int,
+        var type: Int,
+        var sleep: Int = 0
+    )
+
+    data class Item(
+        var x: Int,
+        var y: Int,
+        var type: Int
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(GameView())
@@ -54,20 +69,6 @@ class MainActivity : Activity() {
         private val items = mutableListOf<Item>()
         private val enemies = mutableListOf<Enemy>()
 
-        data class Enemy(
-            var x: Int,
-            var y: Int,
-            var hp: Int,
-            var type: Int,
-            var sleep: Int = 0
-        )
-
-        data class Item(
-            var x: Int,
-            var y: Int,
-            var type: Int
-        )
-
         override fun onDraw(canvas: Canvas) {
             canvas.drawColor(Color.rgb(7, 7, 7))
             if (mode == 0) {
@@ -103,11 +104,21 @@ class MainActivity : Activity() {
             paint.textSize = cell * 0.62f
 
             paint.color = Color.YELLOW
-            canvas.drawText(">", left + stairX * cell + cell / 2, top + stairY * cell + cell * .72f, paint)
+            canvas.drawText(
+                ">",
+                left + stairX * cell + cell / 2,
+                top + stairY * cell + cell * .72f,
+                paint
+            )
 
             for (trap in traps) {
                 paint.color = Color.DKGRAY
-                canvas.drawText("^", left + trap.first * cell + cell / 2, top + trap.second * cell + cell * .72f, paint)
+                canvas.drawText(
+                    "^",
+                    left + trap.first * cell + cell / 2,
+                    top + trap.second * cell + cell * .72f,
+                    paint
+                )
             }
 
             for (item in items) {
@@ -118,7 +129,12 @@ class MainActivity : Activity() {
                     3 -> Color.YELLOW
                     else -> Color.LTGRAY
                 }
-                canvas.drawText(itemName(item.type), left + item.x * cell + cell / 2, top + item.y * cell + cell * .72f, paint)
+                canvas.drawText(
+                    itemName(item.type),
+                    left + item.x * cell + cell / 2,
+                    top + item.y * cell + cell * .72f,
+                    paint
+                )
             }
 
             for (enemy in enemies) {
@@ -128,27 +144,46 @@ class MainActivity : Activity() {
                     2 -> Color.BLUE
                     else -> Color.GREEN
                 }
-                canvas.drawText(enemyName(enemy.type), left + enemy.x * cell + cell / 2, top + enemy.y * cell + cell * .72f, paint)
+                canvas.drawText(
+                    enemyName(enemy.type),
+                    left + enemy.x * cell + cell / 2,
+                    top + enemy.y * cell + cell * .72f,
+                    paint
+                )
             }
 
             paint.color = Color.CYAN
-            canvas.drawText("@", left + px * cell + cell / 2, top + py * cell + cell * .72f, paint)
+            canvas.drawText(
+                "@",
+                left + px * cell + cell / 2,
+                top + py * cell + cell * .72f,
+                paint
+            )
 
             paint.textSize = 15f
             paint.color = Color.WHITE
             canvas.drawText(
                 "HP $hp/$maxHp  満腹 $hunger  Lv$level  経験 $exp  金$gold",
-                width / 2f, 25f, paint
+                width / 2f,
+                25f,
+                paint
             )
 
             paint.textSize = 13f
             canvas.drawText(
                 "剣 ${sword + swordPlus} 盾 $shieldPlus  矢$arrows  食料$food  薬$potions",
-                width / 2f, top + 25 * cell + 17, paint
+                width / 2f,
+                top + 25 * cell + 17,
+                paint
             )
 
             paint.color = Color.LTGRAY
-            canvas.drawText(message, width / 2f, top + 25 * cell + 36, paint)
+            canvas.drawText(
+                message,
+                width / 2f,
+                top + 25 * cell + 36,
+                paint
+            )
 
             button(canvas, width * .16f, height * .82f, "←")
             button(canvas, width * .50f, height * .77f, "↑")
@@ -161,12 +196,28 @@ class MainActivity : Activity() {
 
             if (gameOver) {
                 paint.color = Color.argb(225, 0, 0, 0)
-                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                canvas.drawRect(
+                    0f,
+                    0f,
+                    width.toFloat(),
+                    height.toFloat(),
+                    paint
+                )
                 paint.color = Color.WHITE
                 paint.textSize = 34f
-                canvas.drawText("力尽きた", width / 2f, height * .42f, paint)
+                canvas.drawText(
+                    "力尽きた",
+                    width / 2f,
+                    height * .42f,
+                    paint
+                )
                 paint.textSize = 17f
-                canvas.drawText("タップでタイトルへ", width / 2f, height * .50f, paint)
+                canvas.drawText(
+                    "タップでタイトルへ",
+                    width / 2f,
+                    height * .50f,
+                    paint
+                )
             }
         }
 
@@ -174,25 +225,47 @@ class MainActivity : Activity() {
             paint.textAlign = Paint.Align.CENTER
             paint.color = Color.WHITE
             paint.textSize = 38f
-            canvas.drawText("迷宮の旅人", width / 2f, height * .28f, paint)
+            canvas.drawText(
+                "迷宮の旅人",
+                width / 2f,
+                height * .28f,
+                paint
+            )
 
             paint.textSize = 18f
             paint.color = Color.LTGRAY
-            canvas.drawText("ターン制ローグライク DX", width / 2f, height * .34f, paint)
+            canvas.drawText(
+                "ターン制ローグライク DX",
+                width / 2f,
+                height * .34f,
+                paint
+            )
 
             paint.textSize = 20f
             paint.color = Color.YELLOW
-            canvas.drawText("画面をタップして開始", width / 2f, height * .52f, paint)
+            canvas.drawText(
+                "画面をタップして開始",
+                width / 2f,
+                height * .52f,
+                paint
+            )
 
             paint.textSize = 14f
             paint.color = Color.GRAY
             canvas.drawText(
                 "ランダム迷宮 / 装備 / 店 / 魔法 / 罠 / セーブ",
-                width / 2f, height * .60f, paint
+                width / 2f,
+                height * .60f,
+                paint
             )
 
             val best = prefs.getInt("best", 0)
-            canvas.drawText("最高スコア $best", width / 2f, height * .66f, paint)
+            canvas.drawText(
+                "最高スコア $best",
+                width / 2f,
+                height * .66f,
+                paint
+            )
         }
 
         private fun drawShop(canvas: Canvas) {
@@ -200,11 +273,21 @@ class MainActivity : Activity() {
             paint.textAlign = Paint.Align.CENTER
             paint.color = Color.YELLOW
             paint.textSize = 32f
-            canvas.drawText("商店", width / 2f, 100f, paint)
+            canvas.drawText(
+                "商店",
+                width / 2f,
+                100f,
+                paint
+            )
 
             paint.color = Color.WHITE
             paint.textSize = 19f
-            canvas.drawText("所持金: $gold G", width / 2f, 145f, paint)
+            canvas.drawText(
+                "所持金: $gold G",
+                width / 2f,
+                145f,
+                paint
+            )
 
             val lines = listOf(
                 "回復薬 10G",
@@ -214,8 +297,14 @@ class MainActivity : Activity() {
                 "盾強化 40G",
                 "画面タップで戻る"
             )
+
             lines.forEachIndexed { index, text ->
-                canvas.drawText(text, width / 2f, 210f + index * 55, paint)
+                canvas.drawText(
+                    text,
+                    width / 2f,
+                    210f + index * 55,
+                    paint
+                )
             }
         }
 
@@ -255,8 +344,11 @@ class MainActivity : Activity() {
             when {
                 x < w * .30f && y > h * .76f -> move(-1, 0)
                 x > w * .70f && y > h * .76f -> move(1, 0)
-                x in w * .35f..w * .65f && y > h * .72f && y < h * .86f -> move(0, -1)
-                x in w * .35f..w * .65f && y > h * .86f -> move(0, 1)
+                x in w * .35f..w * .65f &&
+                        y > h * .72f &&
+                        y < h * .86f -> move(0, -1)
+                x in w * .35f..w * .65f &&
+                        y > h * .86f -> move(0, 1)
                 x < w * .28f && y > h * .89f -> eat()
                 x in w * .28f..w * .49f && y > h * .89f -> drink()
                 x in w * .49f..w * .74f && y > h * .89f -> cast()
@@ -286,7 +378,10 @@ class MainActivity : Activity() {
             gameOver = false
             newFloor()
             message = "第1階。階段を探そう"
-            tone.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
+            tone.startTone(
+                ToneGenerator.TONE_PROP_BEEP,
+                100
+            )
         }
 
         private fun newFloor() {
@@ -320,7 +415,9 @@ class MainActivity : Activity() {
             val floorTiles = mutableListOf<Pair<Int, Int>>()
             for (y in 1..23) {
                 for (x in 1..15) {
-                    if (map[y][x] == '.') floorTiles.add(x to y)
+                    if (map[y][x] == '.') {
+                        floorTiles.add(x to y)
+                    }
                 }
             }
 
@@ -328,7 +425,9 @@ class MainActivity : Activity() {
             px = start.first
             py = start.second
 
-            val far = floorTiles.maxBy { abs(it.first - px) + abs(it.second - py) }
+            val far = floorTiles.maxBy {
+                abs(it.first - px) + abs(it.second - py)
+            }
             stairX = far.first
             stairY = far.second
 
@@ -343,7 +442,12 @@ class MainActivity : Activity() {
                 val q = candidates.randomOrNull()
                 if (q != null) {
                     enemies.add(
-                        Enemy(q.first, q.second, 5 + floorNumber, rng.nextInt(4))
+                        Enemy(
+                            q.first,
+                            q.second,
+                            5 + floorNumber,
+                            rng.nextInt(4)
+                        )
                     )
                 }
             }
@@ -351,7 +455,13 @@ class MainActivity : Activity() {
             repeat(5) {
                 val q = floorTiles.random(rng)
                 if (q != (px to py) && q != (stairX to stairY)) {
-                    items.add(Item(q.first, q.second, rng.nextInt(5)))
+                    items.add(
+                        Item(
+                            q.first,
+                            q.second,
+                            rng.nextInt(5)
+                        )
+                    )
                 }
             }
 
@@ -383,13 +493,20 @@ class MainActivity : Activity() {
             val nx = px + dx
             val ny = py + dy
 
-            if (nx !in 1..15 || ny !in 1..23 || map[ny][nx] == '#') {
+            if (
+                nx !in 1..15 ||
+                ny !in 1..23 ||
+                map[ny][nx] == '#'
+            ) {
                 message = "壁だ"
                 invalidate()
                 return
             }
 
-            val enemy = enemies.firstOrNull { it.x == nx && it.y == ny }
+            val enemy = enemies.firstOrNull {
+                it.x == nx && it.y == ny
+            }
+
             if (enemy != null) {
                 attack(enemy)
                 turn()
@@ -423,7 +540,10 @@ class MainActivity : Activity() {
         private fun attack(enemy: Enemy) {
             val damage = sword + swordPlus
             enemy.hp -= damage
-            tone.startTone(ToneGenerator.TONE_PROP_ACK, 70)
+            tone.startTone(
+                ToneGenerator.TONE_PROP_ACK,
+                70
+            )
             message = "攻撃！ $damage ダメージ"
 
             if (enemy.hp <= 0) {
@@ -450,11 +570,22 @@ class MainActivity : Activity() {
                 }
 
                 if (abs(enemy.x - px) + abs(enemy.y - py) == 1) {
-                    hp -= maxOf(1, 1 + floorNumber / 4 - shieldPlus)
+                    hp -= maxOf(
+                        1,
+                        1 + floorNumber / 4 - shieldPlus
+                    )
                     message = "敵の攻撃！"
                 } else if (abs(enemy.x - px) + abs(enemy.y - py) < 8) {
-                    val dx = if (px > enemy.x) 1 else if (px < enemy.x) -1 else 0
-                    val dy = if (py > enemy.y) 1 else if (py < enemy.y) -1 else 0
+                    val dx =
+                        if (px > enemy.x) 1
+                        else if (px < enemy.x) -1
+                        else 0
+
+                    val dy =
+                        if (py > enemy.y) 1
+                        else if (py < enemy.y) -1
+                        else 0
+
                     val nx = enemy.x + dx
                     val ny = enemy.y + dy
 
@@ -462,7 +593,11 @@ class MainActivity : Activity() {
                         nx in 1..15 &&
                         ny in 1..23 &&
                         map[ny][nx] == '.' &&
-                        enemies.none { it !== enemy && it.x == nx && it.y == ny } &&
+                        enemies.none {
+                            it !== enemy &&
+                                    it.x == nx &&
+                                    it.y == ny
+                        } &&
                         !(nx == px && ny == py)
                     ) {
                         enemy.x = nx
@@ -475,7 +610,9 @@ class MainActivity : Activity() {
                 hp = 0
                 gameOver = true
                 val best = prefs.getInt("best", 0)
-                prefs.edit().putInt("best", maxOf(score, best)).apply()
+                prefs.edit()
+                    .putInt("best", maxOf(score, best))
+                    .apply()
             }
 
             invalidate()
@@ -487,7 +624,10 @@ class MainActivity : Activity() {
                 message = "罠を踏んだ！"
             }
 
-            val item = items.firstOrNull { it.x == px && it.y == py }
+            val item = items.firstOrNull {
+                it.x == px && it.y == py
+            }
+
             if (item != null) {
                 items.remove(item)
 
@@ -538,10 +678,17 @@ class MainActivity : Activity() {
                 abs(it.x - px) + abs(it.y - py)
             }
 
-            if (target != null && abs(target.x - px) + abs(target.y - py) <= 5) {
+            if (
+                target != null &&
+                abs(target.x - px) + abs(target.y - py) <= 5
+            ) {
                 target.hp -= 10
                 message = "魔法！ 10ダメージ"
-                if (target.hp <= 0) enemies.remove(target)
+
+                if (target.hp <= 0) {
+                    enemies.remove(target)
+                }
+
                 turn()
             } else {
                 message = "魔法の射程に敵がいない"
@@ -558,13 +705,14 @@ class MainActivity : Activity() {
 
             val target = enemies.firstOrNull {
                 (it.x == px && abs(it.y - py) <= 4) ||
-                    (it.y == py && abs(it.x - px) <= 4)
+                        (it.y == py && abs(it.x - px) <= 4)
             }
 
             if (target != null) {
                 arrows--
                 target.hp -= 6
                 message = "矢を放った！"
+
                 if (target.hp <= 0) {
                     enemies.remove(target)
                     gold += 3
