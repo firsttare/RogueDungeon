@@ -35,6 +35,7 @@ class MainActivity : Activity() {
 
         private var mode = 0
         private var menuIndex = 0
+        private var menuPage = 0
         private var map = Array(25) { CharArray(17) { '#' } }
         private var px = 8
         private var py = 12
@@ -358,29 +359,37 @@ class MainActivity : Activity() {
 
             paint.color = Color.rgb(24, 26, 34)
             canvas.drawRoundRect(
-                width * .10f, height * .08f,
-                width * .90f, height * .92f,
+                width * .08f, height * .06f,
+                width * .92f, height * .94f,
                 18f, 18f, paint
             )
 
-            paint.color = Color.rgb(55, 58, 70)
+            paint.color = Color.rgb(65, 68, 80)
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 3f
             canvas.drawRoundRect(
-                width * .10f, height * .08f,
-                width * .90f, height * .92f,
+                width * .08f, height * .06f,
+                width * .92f, height * .94f,
                 18f, 18f, paint
             )
             paint.style = Paint.Style.FILL
 
+            if (menuPage == 0) {
+                drawMainMenu(canvas)
+            } else {
+                when (menuPage) {
+                    1 -> drawStatusPage(canvas)
+                    2 -> drawItemsPage(canvas)
+                    3 -> drawHelpPage(canvas)
+                    4 -> drawSettingsPage(canvas)
+                }
+            }
+        }
+
+        private fun drawMainMenu(canvas: Canvas) {
             paint.color = Color.YELLOW
             paint.textSize = 30f
-            canvas.drawText(
-                "MENU",
-                width / 2f,
-                height * .16f,
-                paint
-            )
+            canvas.drawText("MENU", width / 2f, height * .15f, paint)
 
             val entries = arrayOf(
                 "ステータス",
@@ -393,40 +402,130 @@ class MainActivity : Activity() {
 
             paint.textSize = 18f
             entries.forEachIndexed { index, text ->
-                val y = height * .25f + index * height * .10f
+                val y = height * .24f + index * height * .095f
 
                 if (index == menuIndex) {
                     paint.color = Color.rgb(65, 72, 92)
                     canvas.drawRoundRect(
-                        width * .18f, y - 27f,
-                        width * .82f, y + 10f,
+                        width * .16f, y - 27f,
+                        width * .84f, y + 10f,
                         8f, 8f, paint
                     )
                     paint.color = Color.YELLOW
-                    canvas.drawText(
-                        "▶ $text",
-                        width / 2f,
-                        y,
-                        paint
-                    )
+                    canvas.drawText("▶ $text", width / 2f, y, paint)
                 } else {
                     paint.color = Color.LTGRAY
-                    canvas.drawText(
-                        text,
-                        width / 2f,
-                        y,
-                        paint
-                    )
+                    canvas.drawText(text, width / 2f, y, paint)
                 }
             }
 
             paint.color = Color.GRAY
             paint.textSize = 12f
             canvas.drawText(
-                "↑↓ 選択    A 決定    B 戻る",
+                "↑↓ 選択    A 決定    B 戻る    START 閉じる",
                 width / 2f,
-                height * .88f,
+                height * .89f,
                 paint
+            )
+        }
+
+        private fun panelText(canvas: Canvas, title: String, lines: List<String>) {
+            paint.color = Color.YELLOW
+            paint.textSize = 27f
+            canvas.drawText(title, width / 2f, height * .15f, paint)
+
+            paint.textAlign = Paint.Align.LEFT
+            paint.color = Color.WHITE
+            paint.textSize = 16f
+
+            var y = height * .25f
+            for (line in lines) {
+                canvas.drawText(line, width * .18f, y, paint)
+                y += height * .065f
+            }
+
+            paint.textAlign = Paint.Align.CENTER
+            paint.color = Color.GRAY
+            paint.textSize = 12f
+            canvas.drawText(
+                "B / START でメニューへ戻る",
+                width / 2f,
+                height * .89f,
+                paint
+            )
+        }
+
+        private fun drawStatusPage(canvas: Canvas) {
+            panelText(
+                canvas,
+                "ステータス",
+                listOf(
+                    "階層              第${floorNumber}階",
+                    "レベル            Lv $level",
+                    "経験値            $exp / ${level * 5}",
+                    "HP                $hp / $maxHp",
+                    "満腹度            $hunger / 100",
+                    "攻撃力            ${sword + swordPlus}",
+                    "剣強化            +$swordPlus",
+                    "盾強化            +$shieldPlus",
+                    "所持金            $gold G",
+                    "スコア            $score",
+                    "杖                ${if (hasStaff) "所持" else "なし"}"
+                )
+            )
+        }
+
+        private fun drawItemsPage(canvas: Canvas) {
+            panelText(
+                canvas,
+                "アイテム",
+                listOf(
+                    "⚔ 剣                 攻撃 ${sword + swordPlus}",
+                    "🛡 盾                 強化 +$shieldPlus",
+                    "🏹 矢                 $arrows 本",
+                    "🍖 食料               $food 個",
+                    "🧪 回復薬             $potions 個",
+                    "✨ 魔法の杖           ${if (hasStaff) "所持" else "なし"}",
+                    "",
+                    "拾ったアイテムは自動的に装備・所持します。"
+                )
+            )
+        }
+
+        private fun drawHelpPage(canvas: Canvas) {
+            panelText(
+                canvas,
+                "操作説明",
+                listOf(
+                    "十字キー / 左スティック   移動",
+                    "A                         決定 / 開始",
+                    "B                         戻る",
+                    "X                         食料を食べる",
+                    "Y                         回復薬を使う",
+                    "L1 / LB                   杖を使う",
+                    "R1 / RB                   弓を撃つ",
+                    "START                     メニュー",
+                    "",
+                    "敵に隣接して移動すると攻撃します。",
+                    "階段を探して次の階へ進みましょう。"
+                )
+            )
+        }
+
+        private fun drawSettingsPage(canvas: Canvas) {
+            panelText(
+                canvas,
+                "設定",
+                listOf(
+                    "効果音              ON",
+                    "タッチ操作          ON",
+                    "コントローラー      ON",
+                    "",
+                    "現在のバージョン",
+                    "迷宮の旅人 DX",
+                    "",
+                    "※ 設定項目は今後追加できます。"
+                )
             )
         }
 
@@ -506,21 +605,27 @@ class MainActivity : Activity() {
             }
 
             if (mode == 3) {
+                if (menuPage != 0) {
+                    menuPage = 0
+                    invalidate()
+                    return true
+                }
+
                 val y = event.y
-                val first = height * .25f
-                val step = height * .10f
+                val first = height * .24f
+                val step = height * .095f
                 val selected = ((y - first + step / 2) / step).toInt()
                     .coerceIn(0, 5)
 
                 menuIndex = selected
                 if (event.x in width * .15f..width * .85f) {
                     when (menuIndex) {
-                        4 -> {
-                            mode = 1
-                        }
-                        5 -> {
-                            mode = 0
-                        }
+                        0 -> menuPage = 1
+                        1 -> menuPage = 2
+                        2 -> menuPage = 3
+                        3 -> menuPage = 4
+                        4 -> mode = 1
+                        5 -> mode = 0
                     }
                 }
                 invalidate()
@@ -569,9 +674,15 @@ class MainActivity : Activity() {
                     mode = 0
                     invalidate()
                 } else if (mode == 3) {
-                    when (menuIndex) {
-                        4 -> mode = 1
-                        5 -> mode = 0
+                    if (menuPage == 0) {
+                        when (menuIndex) {
+                            0 -> menuPage = 1
+                            1 -> menuPage = 2
+                            2 -> menuPage = 3
+                            3 -> menuPage = 4
+                            4 -> mode = 1
+                            5 -> mode = 0
+                        }
                     }
                     invalidate()
                 }
@@ -582,7 +693,11 @@ class MainActivity : Activity() {
             if (key == android.view.KeyEvent.KEYCODE_BUTTON_B ||
                 key == android.view.KeyEvent.KEYCODE_ESCAPE) {
                 if (mode == 3) {
-                    mode = 1
+                    if (menuPage != 0) {
+                        menuPage = 0
+                    } else {
+                        mode = 1
+                    }
                     invalidate()
                 }
                 return true
@@ -592,10 +707,12 @@ class MainActivity : Activity() {
             if (key == android.view.KeyEvent.KEYCODE_BUTTON_START) {
                 if (!gameOver && mode == 1) {
                     mode = 3
+                    menuPage = 0
                     menuIndex = 0
                     invalidate()
                 } else if (mode == 3) {
                     mode = 1
+                    menuPage = 0
                     invalidate()
                 }
                 return true
@@ -603,8 +720,7 @@ class MainActivity : Activity() {
 
             // D-pad / left stick digital directions
             when (key) {
-                android.view.KeyEvent.KEYCODE_DPAD_UP,
-                android.view.KeyEvent.KEYCODE_BUTTON_L1 -> {
+                android.view.KeyEvent.KEYCODE_DPAD_UP -> {
                     if (mode == 3) {
                         menuIndex = (menuIndex - 1 + 6) % 6
                         invalidate()
@@ -614,8 +730,7 @@ class MainActivity : Activity() {
                     return true
                 }
 
-                android.view.KeyEvent.KEYCODE_DPAD_DOWN,
-                android.view.KeyEvent.KEYCODE_BUTTON_R1 -> {
+                android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
                     if (mode == 3) {
                         menuIndex = (menuIndex + 1) % 6
                         invalidate()
@@ -632,6 +747,16 @@ class MainActivity : Activity() {
 
                 android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
                     if (mode == 1) move(1, 0)
+                    return true
+                }
+
+                android.view.KeyEvent.KEYCODE_BUTTON_L1 -> {
+                    if (mode == 1) cast()
+                    return true
+                }
+
+                android.view.KeyEvent.KEYCODE_BUTTON_R1 -> {
+                    if (mode == 1) shoot()
                     return true
                 }
 
