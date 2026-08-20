@@ -123,8 +123,8 @@ class MainActivity : Activity() {
                 for (x in 0..16) {
                     val floor = map[y][x] == '.'
                     paint.color = if (floor) {
-                        val shade = 65 + ((x * 13 + y * 7) % 12)
-                        Color.rgb(shade, shade - 5, shade - 12)
+                        val shade = 62 + ((x * 13 + y * 7) % 16)
+                        Color.rgb(shade, shade - 4, shade - 10)
                     } else {
                         Color.rgb(28, 30, 36)
                     }
@@ -136,6 +136,16 @@ class MainActivity : Activity() {
                         top + (y + 1) * cell - 1.5f,
                         paint
                     )
+
+                    if (floor && (x + y) % 4 == 0) {
+                        paint.color = Color.rgb(82, 77, 68)
+                        canvas.drawCircle(
+                            left + x * cell + cell * .28f,
+                            top + y * cell + cell * .32f,
+                            maxOf(1.2f, cell * .035f),
+                            paint
+                        )
+                    }
 
                     if (!floor) {
                         paint.color = Color.rgb(42, 44, 51)
@@ -151,11 +161,22 @@ class MainActivity : Activity() {
             }
 
             // Stairs
-            paint.color = Color.rgb(255, 205, 55)
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 3f
             val sx = left + stairX * cell
             val sy = top + stairY * cell
+
+            paint.color = Color.rgb(120, 95, 35)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 7f
+            canvas.drawCircle(
+                sx + cell / 2f,
+                sy + cell / 2f,
+                cell * .38f,
+                paint
+            )
+
+            paint.color = Color.rgb(255, 215, 70)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 3f
             canvas.drawRect(
                 sx + cell * .22f, sy + cell * .18f,
                 sx + cell * .78f, sy + cell * .82f, paint
@@ -215,6 +236,13 @@ class MainActivity : Activity() {
             }
 
             // Player
+            paint.color = Color.rgb(30, 100, 115)
+            canvas.drawCircle(
+                left + px * cell + cell / 2f,
+                top + py * cell + cell / 2f,
+                cell * .38f,
+                paint
+            )
             paint.color = Color.CYAN
             paint.textSize = cell * .60f
             canvas.drawText(
@@ -801,6 +829,42 @@ class MainActivity : Activity() {
             }
 
             return false
+        }
+
+        private fun placeReachableStairs() {
+            val reachable = mutableSetOf<Pair<Int, Int>>()
+            val queue = java.util.ArrayDeque<Pair<Int, Int>>()
+            val start = Pair(px, py)
+
+            map[py][px] = '.'
+            queue.add(start)
+            reachable.add(start)
+
+            val dirs = arrayOf(
+                Pair(1, 0), Pair(-1, 0),
+                Pair(0, 1), Pair(0, -1)
+            )
+
+            while (queue.isNotEmpty()) {
+                val p = queue.removeFirst()
+                for (d in dirs) {
+                    val nx = p.first + d.first
+                    val ny = p.second + d.second
+                    if (nx !in 0..16 || ny !in 0..24) continue
+                    if (map[ny][nx] == '#') continue
+                    val next = Pair(nx, ny)
+                    if (reachable.add(next)) queue.add(next)
+                }
+            }
+
+            val candidates = reachable
+                .filter { it != start }
+                .shuffled(rng)
+
+            val chosen = candidates.firstOrNull() ?: start
+            stairX = chosen.first
+            stairY = chosen.second
+            map[stairY][stairX] = '.'
         }
 
         private fun newGame() {
