@@ -13,6 +13,24 @@ import kotlin.random.Random
 
 class MainActivity : Activity() {
 
+    private lateinit var gameView: GameView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        gameView = GameView()
+        gameView.isFocusable = true
+        gameView.isFocusableInTouchMode = true
+        setContentView(gameView)
+        gameView.requestFocus()
+    }
+
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (::gameView.isInitialized && gameView.handleControllerKey(event)) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
+
     data class Enemy(
         var x: Int,
         var y: Int,
@@ -68,6 +86,7 @@ class MainActivity : Activity() {
 
         override fun onDraw(canvas: Canvas) {
             canvas.drawColor(Color.rgb(5, 6, 9))
+            try {
 
             if (mode == 0) {
                 drawTitle(canvas)
@@ -227,7 +246,7 @@ class MainActivity : Activity() {
                 width * .53f, 28f, paint
             )
             canvas.drawText(
-                "💰 $gold",
+                "G $gold",
                 width * .78f, 28f, paint
             )
 
@@ -294,23 +313,23 @@ class MainActivity : Activity() {
             paint.color = Color.WHITE
             paint.textSize = 12f
             canvas.drawText(
-                "⚔ ${sword + swordPlus}",
+                "ATK ${sword + swordPlus}",
                 width * .12f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "🛡 $shieldPlus",
+                "DEF $shieldPlus",
                 width * .30f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "🏹 $arrows",
+                "ARW $arrows",
                 width * .48f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "🍖 $food",
+                "FOOD $food",
                 width * .66f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "🧪 $potions",
+                "POT $potions",
                 width * .84f, top + 25 * cell + 70, paint
             )
 
@@ -351,6 +370,16 @@ class MainActivity : Activity() {
                     height * .50f,
                     paint
                 )
+            }
+            } catch (e: Exception) {
+                paint.color = Color.rgb(8, 8, 10)
+                canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                paint.color = Color.WHITE
+                paint.textAlign = Paint.Align.CENTER
+                paint.textSize = 22f
+                canvas.drawText("RogueDungeon", width / 2f, height * .40f, paint)
+                paint.textSize = 14f
+                canvas.drawText("A / タップで開始", width / 2f, height * .50f, paint)
             }
         }
 
@@ -480,12 +509,12 @@ class MainActivity : Activity() {
                 canvas,
                 "アイテム",
                 listOf(
-                    "⚔ 剣                 攻撃 ${sword + swordPlus}",
-                    "🛡 盾                 強化 +$shieldPlus",
-                    "🏹 矢                 $arrows 本",
-                    "🍖 食料               $food 個",
-                    "🧪 回復薬             $potions 個",
-                    "✨ 魔法の杖           ${if (hasStaff) "所持" else "なし"}",
+                    "剣                 攻撃 ${sword + swordPlus}",
+                    "盾                 強化 +$shieldPlus",
+                    "矢                 $arrows 本",
+                    "食料               $food 個",
+                    "回復薬             $potions 個",
+                    "魔法の杖           ${if (hasStaff) "所持" else "なし"}",
                     "",
                     "拾ったアイテムは自動的に装備・所持します。"
                 )
@@ -660,8 +689,8 @@ class MainActivity : Activity() {
             return true
         }
 
-        override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
-            if (event.action != android.view.KeyEvent.ACTION_DOWN) return true
+        fun handleControllerKey(event: android.view.KeyEvent): Boolean {
+            if (event.action != android.view.KeyEvent.ACTION_DOWN) return false
 
             val key = event.keyCode
 
@@ -771,10 +800,11 @@ class MainActivity : Activity() {
                 }
             }
 
-            return super.dispatchKeyEvent(event)
+            return false
         }
 
         private fun newGame() {
+            requestFocus()
             mode = 1
             floorNumber = 1
             level = 1
