@@ -47,6 +47,14 @@ class MainActivity : Activity() {
         var type: Int
     )
 
+    data class DamageText(
+        var x: Float,
+        var y: Float,
+        val damage: Int,
+        val start: Long,
+        val critical: Boolean = false
+    )
+
     inner class GameView : View(this@MainActivity) {
         private val rng = Random(System.currentTimeMillis())
         private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -97,14 +105,6 @@ class MainActivity : Activity() {
         private var pickupY = -1
         private var pickupStart = 0L
         private var floorTransition = 0L
-
-        data class DamageText(
-            var x: Float,
-            var y: Float,
-            val damage: Int,
-            val start: Long,
-            val critical: Boolean = false
-        )
 
         private val traps = mutableSetOf<Pair<Int, Int>>()
         private val items = mutableListOf<Item>()
@@ -340,9 +340,15 @@ class MainActivity : Activity() {
                 return
             }
 
-            val cell = minOf(width / 17f, height * 0.60f / 25f)
-            val left = (width - 17 * cell) / 2f
-            val top = 48f
+            val hudHeight = 132f
+            val top = 28f
+            val cell = minOf(
+                width / 17f,
+                (height - hudHeight - top - 8f) / 25f
+            )
+            val dungeonWidth = 17f * cell
+            val dungeonHeight = 25f * cell
+            val left = (width - dungeonWidth) / 2f
 
             paint.textAlign = Paint.Align.CENTER
 
@@ -531,33 +537,33 @@ class MainActivity : Activity() {
 
             paint.color = Color.rgb(35, 37, 43)
             canvas.drawRoundRect(
-                barLeft, top + 25 * cell + 12,
-                barRight, top + 25 * cell + 24,
+                barLeft, top + dungeonHeight + 8f,
+                barRight, top + dungeonHeight + 16f,
                 5f, 5f, paint
             )
 
             paint.color = Color.rgb(210, 55, 65)
             val hpRatio = (hp.toFloat() / maxHp.coerceAtLeast(1)).coerceIn(0f, 1f)
             canvas.drawRoundRect(
-                barLeft, top + 25 * cell + 12,
+                barLeft, top + dungeonHeight + 8f,
                 barLeft + barWidth * hpRatio,
-                top + 25 * cell + 24,
+                top + dungeonHeight + 16f,
                 5f, 5f, paint
             )
 
             paint.color = Color.rgb(35, 37, 43)
             canvas.drawRoundRect(
-                barLeft, top + 25 * cell + 29,
-                barRight, top + 25 * cell + 41,
+                barLeft, top + dungeonHeight + 26f,
+                barRight, top + dungeonHeight + 34f,
                 5f, 5f, paint
             )
 
             paint.color = Color.rgb(205, 150, 55)
             val hungerRatio = (hunger / 100f).coerceIn(0f, 1f)
             canvas.drawRoundRect(
-                barLeft, top + 25 * cell + 29,
+                barLeft, top + dungeonHeight + 26f,
                 barLeft + barWidth * hungerRatio,
-                top + 25 * cell + 41,
+                top + dungeonHeight + 34f,
                 5f, 5f, paint
             )
 
@@ -566,16 +572,27 @@ class MainActivity : Activity() {
             canvas.drawText(
                 "HP",
                 barLeft + 20f,
-                top + 25 * cell + 22f,
+                top + dungeonHeight + 25f,
                 paint
             )
             canvas.drawText(
                 "満腹 $hunger",
                 barLeft + 48f,
-                top + 25 * cell + 39f,
+                top + dungeonHeight + 42f,
                 paint
             )
 
+            val now = System.currentTimeMillis()
+
+            drawAttackEffect(canvas, left, top, cell, now)
+            drawDamageTexts(canvas, left, top, cell, now)
+            drawPickupEffect(canvas, left, top, cell, now)
+
+            for (enemy in enemies) {
+                drawEnemyHpBar(canvas, left, top, cell, enemy)
+            }
+
+            // HUD panel
             // Dungeon frame / polished arcade-style border
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = 3f
@@ -618,8 +635,8 @@ class MainActivity : Activity() {
             // Equipment strip
             paint.color = Color.rgb(18, 20, 27)
             canvas.drawRoundRect(
-                8f, top + 25 * cell + 49,
-                width - 8f, top + 25 * cell + 82,
+                8f, top + dungeonHeight + 68f,
+                width - 8f, top + dungeonHeight + 101f,
                 8f, 8f, paint
             )
 
@@ -627,32 +644,32 @@ class MainActivity : Activity() {
             paint.textSize = 12f
             canvas.drawText(
                 "剣 ${sword + swordPlus}",
-                width * .12f, top + 25 * cell + 70, paint
+                width * .12f, top + dungeonHeight + 89f, paint
             )
             canvas.drawText(
                 "盾 +$shieldPlus",
-                width * .30f, top + 25 * cell + 70, paint
+                width * .30f, top + dungeonHeight + 89f, paint
             )
             canvas.drawText(
                 "矢 $arrows",
-                width * .48f, top + 25 * cell + 70, paint
+                width * .48f, top + dungeonHeight + 89f, paint
             )
             canvas.drawText(
                 "食 $food",
-                width * .66f, top + 25 * cell + 70, paint
+                width * .66f, top + dungeonHeight + 89f, paint
             )
             canvas.drawText(
                 "薬 $potions",
-                width * .84f, top + 25 * cell + 70, paint
+                width * .84f, top + dungeonHeight + 89f, paint
             )
 
             // Message window
             paint.color = Color.rgb(17, 18, 24)
             canvas.drawRoundRect(
                 10f,
-                top + 25 * cell + 90,
+                top + dungeonHeight + 106f,
                 width - 10f,
-                top + 25 * cell + 123,
+                top + dungeonHeight + 132f,
                 7f, 7f, paint
             )
             paint.color = Color.rgb(75, 78, 90)
@@ -660,9 +677,9 @@ class MainActivity : Activity() {
             paint.strokeWidth = 1.5f
             canvas.drawRoundRect(
                 10f,
-                top + 25 * cell + 90,
+                top + dungeonHeight + 106f,
                 width - 10f,
-                top + 25 * cell + 123,
+                top + dungeonHeight + 132f,
                 7f, 7f, paint
             )
             paint.style = Paint.Style.FILL
@@ -703,6 +720,7 @@ class MainActivity : Activity() {
                     height * .50f,
                     paint
                 )
+            finishVisualFrame(canvas, now)
             }
             } catch (e: Exception) {
                 paint.color = Color.rgb(8, 8, 10)
@@ -935,7 +953,6 @@ class MainActivity : Activity() {
             if (attackFxX >= 0 || damageTexts.isNotEmpty() || pickupX >= 0 || floorTransition > 0L) {
                 postInvalidateOnAnimation()
             }
-            finishVisualFrame(canvas, now)
         }
 
         private fun drawMenu(canvas: Canvas) {
