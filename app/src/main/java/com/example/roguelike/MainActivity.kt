@@ -200,56 +200,35 @@ class MainActivity : Activity() {
                 )
             }
 
-            // Items
+            // Items — small pixel-art-like icons
             for (item in items) {
-                paint.color = when (item.type) {
-                    0 -> Color.WHITE
-                    1 -> Color.CYAN
-                    2 -> Color.GREEN
-                    3 -> Color.YELLOW
-                    else -> Color.rgb(255, 170, 70)
-                }
-                paint.textSize = cell * .48f
-                canvas.drawText(
-                    itemName(item.type),
-                    left + item.x * cell + cell / 2,
-                    top + item.y * cell + cell * .68f,
-                    paint
+                drawItemSprite(
+                    canvas,
+                    left + item.x * cell,
+                    top + item.y * cell,
+                    cell,
+                    item.type
                 )
             }
 
-            // Enemies
+            // Enemies — each type has its own silhouette/face
             for (enemy in enemies) {
-                paint.color = when (enemy.type) {
-                    0 -> Color.rgb(245, 65, 65)
-                    1 -> Color.rgb(230, 145, 55)
-                    2 -> Color.rgb(85, 145, 255)
-                    else -> Color.rgb(95, 220, 105)
-                }
-                paint.textSize = cell * .52f
-                canvas.drawText(
-                    enemyName(enemy.type),
-                    left + enemy.x * cell + cell / 2,
-                    top + enemy.y * cell + cell * .70f,
-                    paint
+                drawEnemySprite(
+                    canvas,
+                    left + enemy.x * cell,
+                    top + enemy.y * cell,
+                    cell,
+                    enemy.type,
+                    enemy.sleep > 0
                 )
             }
 
-            // Player
-            paint.color = Color.rgb(30, 100, 115)
-            canvas.drawCircle(
-                left + px * cell + cell / 2f,
-                top + py * cell + cell / 2f,
-                cell * .38f,
-                paint
-            )
-            paint.color = Color.CYAN
-            paint.textSize = cell * .60f
-            canvas.drawText(
-                "@",
-                left + px * cell + cell / 2,
-                top + py * cell + cell * .70f,
-                paint
+            // Player — readable little adventurer sprite
+            drawPlayerSprite(
+                canvas,
+                left + px * cell,
+                top + py * cell,
+                cell
             )
 
             // Top HUD
@@ -330,6 +309,23 @@ class MainActivity : Activity() {
                 paint
             )
 
+            // EXP bar
+            paint.color = Color.rgb(35, 37, 43)
+            canvas.drawRoundRect(
+                barLeft, top + 25 * cell + 46,
+                barRight, top + 25 * cell + 52,
+                3f, 3f, paint
+            )
+            paint.color = Color.rgb(90, 150, 220)
+            val expNeed = (level * 5).coerceAtLeast(1)
+            val expRatio = (exp.toFloat() / expNeed).coerceIn(0f, 1f)
+            canvas.drawRoundRect(
+                barLeft, top + 25 * cell + 46,
+                barLeft + barWidth * expRatio,
+                top + 25 * cell + 52,
+                3f, 3f, paint
+            )
+
             // Equipment strip
             paint.color = Color.rgb(18, 20, 27)
             canvas.drawRoundRect(
@@ -341,32 +337,52 @@ class MainActivity : Activity() {
             paint.color = Color.WHITE
             paint.textSize = 12f
             canvas.drawText(
-                "ATK ${sword + swordPlus}",
+                "剣 ${sword + swordPlus}",
                 width * .12f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "DEF $shieldPlus",
+                "盾 +$shieldPlus",
                 width * .30f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "ARW $arrows",
+                "矢 $arrows",
                 width * .48f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "FOOD $food",
+                "食 $food",
                 width * .66f, top + 25 * cell + 70, paint
             )
             canvas.drawText(
-                "POT $potions",
+                "薬 $potions",
                 width * .84f, top + 25 * cell + 70, paint
             )
 
-            paint.color = Color.LTGRAY
+            // Message window
+            paint.color = Color.rgb(17, 18, 24)
+            canvas.drawRoundRect(
+                10f,
+                top + 25 * cell + 90,
+                width - 10f,
+                top + 25 * cell + 123,
+                7f, 7f, paint
+            )
+            paint.color = Color.rgb(75, 78, 90)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.5f
+            canvas.drawRoundRect(
+                10f,
+                top + 25 * cell + 90,
+                width - 10f,
+                top + 25 * cell + 123,
+                7f, 7f, paint
+            )
+            paint.style = Paint.Style.FILL
+            paint.color = Color.WHITE
             paint.textSize = 12f
             canvas.drawText(
-                message,
+                if (message.isBlank()) "迷宮を探索しよう……" else message,
                 width / 2f,
-                top + 25 * cell + 98,
+                top + 25 * cell + 111,
                 paint
             )
 
@@ -408,6 +424,220 @@ class MainActivity : Activity() {
                 canvas.drawText("RogueDungeon", width / 2f, height * .40f, paint)
                 paint.textSize = 14f
                 canvas.drawText("A / タップで開始", width / 2f, height * .50f, paint)
+            }
+        }
+
+        private fun drawPlayerSprite(canvas: Canvas, x: Float, y: Float, s: Float) {
+            val cx = x + s / 2f
+            val cy = y + s / 2f
+
+            paint.style = Paint.Style.FILL
+
+            // shadow
+            paint.color = Color.argb(110, 0, 0, 0)
+            canvas.drawOval(
+                cx - s * .31f, y + s * .72f,
+                cx + s * .31f, y + s * .88f, paint
+            )
+
+            // cloak/body
+            paint.color = Color.rgb(42, 92, 125)
+            canvas.drawRoundRect(
+                x + s * .25f, y + s * .42f,
+                x + s * .75f, y + s * .82f,
+                s * .12f, s * .12f, paint
+            )
+
+            // head
+            paint.color = Color.rgb(218, 171, 125)
+            canvas.drawCircle(cx, y + s * .32f, s * .19f, paint)
+
+            // hair/hood
+            paint.color = Color.rgb(55, 42, 38)
+            canvas.drawArc(
+                x + s * .29f, y + s * .13f,
+                x + s * .71f, y + s * .50f,
+                180f, 180f, true, paint
+            )
+
+            // sword
+            paint.color = Color.LTGRAY
+            paint.strokeWidth = maxOf(2f, s * .06f)
+            canvas.drawLine(
+                x + s * .70f, y + s * .47f,
+                x + s * .91f, y + s * .25f,
+                paint
+            )
+            paint.color = Color.rgb(190, 145, 60)
+            canvas.drawLine(
+                x + s * .64f, y + s * .55f,
+                x + s * .78f, y + s * .42f,
+                paint
+            )
+        }
+
+        private fun drawEnemySprite(
+            canvas: Canvas,
+            x: Float,
+            y: Float,
+            s: Float,
+            type: Int,
+            asleep: Boolean
+        ) {
+            val cx = x + s / 2f
+            val cy = y + s / 2f
+
+            paint.style = Paint.Style.FILL
+            paint.color = Color.argb(100, 0, 0, 0)
+            canvas.drawOval(
+                cx - s * .32f, y + s * .73f,
+                cx + s * .32f, y + s * .88f, paint
+            )
+
+            when (type) {
+                0 -> {
+                    // Slime
+                    paint.color = Color.rgb(205, 65, 70)
+                    canvas.drawRoundRect(
+                        x + s * .20f, y + s * .28f,
+                        x + s * .80f, y + s * .78f,
+                        s * .20f, s * .20f, paint
+                    )
+                    paint.color = Color.WHITE
+                    canvas.drawCircle(x + s * .40f, y + s * .47f, s * .07f, paint)
+                    canvas.drawCircle(x + s * .60f, y + s * .47f, s * .07f, paint)
+                    paint.color = Color.BLACK
+                    canvas.drawCircle(x + s * .40f, y + s * .47f, s * .025f, paint)
+                    canvas.drawCircle(x + s * .60f, y + s * .47f, s * .025f, paint)
+                }
+                1 -> {
+                    // Orc
+                    paint.color = Color.rgb(165, 105, 55)
+                    canvas.drawCircle(cx, y + s * .45f, s * .31f, paint)
+                    paint.color = Color.rgb(235, 205, 150)
+                    canvas.drawCircle(x + s * .39f, y + s * .44f, s * .045f, paint)
+                    canvas.drawCircle(x + s * .61f, y + s * .44f, s * .045f, paint)
+                    paint.color = Color.LTGRAY
+                    canvas.drawRect(
+                        x + s * .34f, y + s * .62f,
+                        x + s * .43f, y + s * .75f, paint
+                    )
+                    canvas.drawRect(
+                        x + s * .57f, y + s * .62f,
+                        x + s * .66f, y + s * .75f, paint
+                    )
+                }
+                2 -> {
+                    // Mage
+                    paint.color = Color.rgb(72, 92, 175)
+                    val path = android.graphics.Path()
+                    path.moveTo(cx, y + s * .14f)
+                    path.lineTo(x + s * .18f, y + s * .78f)
+                    path.lineTo(x + s * .82f, y + s * .78f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                    paint.color = Color.rgb(210, 180, 145)
+                    canvas.drawCircle(cx, y + s * .42f, s * .18f, paint)
+                    paint.color = Color.CYAN
+                    canvas.drawCircle(cx, y + s * .43f, s * .05f, paint)
+                }
+                else -> {
+                    // Beast
+                    paint.color = Color.rgb(80, 170, 90)
+                    canvas.drawOval(
+                        x + s * .17f, y + s * .25f,
+                        x + s * .83f, y + s * .78f, paint
+                    )
+                    paint.color = Color.rgb(45, 85, 45)
+                    canvas.drawCircle(x + s * .39f, y + s * .44f, s * .06f, paint)
+                    canvas.drawCircle(x + s * .61f, y + s * .44f, s * .06f, paint)
+                    paint.color = Color.WHITE
+                    canvas.drawCircle(x + s * .39f, y + s * .42f, s * .025f, paint)
+                    canvas.drawCircle(x + s * .61f, y + s * .42f, s * .025f, paint)
+                }
+            }
+
+            if (asleep) {
+                paint.color = Color.WHITE
+                paint.textSize = s * .22f
+                canvas.drawText("Z", x + s * .72f, y + s * .24f, paint)
+            }
+        }
+
+        private fun drawItemSprite(
+            canvas: Canvas,
+            x: Float,
+            y: Float,
+            s: Float,
+            type: Int
+        ) {
+            val cx = x + s / 2f
+
+            paint.style = Paint.Style.FILL
+
+            when (type) {
+                0 -> {
+                    // Coin
+                    paint.color = Color.rgb(245, 205, 55)
+                    canvas.drawCircle(cx, y + s * .52f, s * .25f, paint)
+                    paint.color = Color.rgb(110, 80, 25)
+                    paint.textSize = s * .25f
+                    canvas.drawText("G", cx, y + s * .60f, paint)
+                }
+                1 -> {
+                    // Potion
+                    paint.color = Color.LTGRAY
+                    canvas.drawRect(
+                        x + s * .40f, y + s * .18f,
+                        x + s * .60f, y + s * .32f, paint
+                    )
+                    paint.color = Color.CYAN
+                    canvas.drawRoundRect(
+                        x + s * .29f, y + s * .30f,
+                        x + s * .71f, y + s * .75f,
+                        s * .10f, s * .10f, paint
+                    )
+                }
+                2 -> {
+                    // Food
+                    paint.color = Color.rgb(190, 110, 55)
+                    canvas.drawOval(
+                        x + s * .25f, y + s * .35f,
+                        x + s * .75f, y + s * .72f, paint
+                    )
+                    paint.color = Color.rgb(235, 175, 100)
+                    canvas.drawOval(
+                        x + s * .34f, y + s * .43f,
+                        x + s * .66f, y + s * .58f, paint
+                    )
+                }
+                3 -> {
+                    // Scroll / staff
+                    paint.color = Color.rgb(230, 210, 150)
+                    canvas.drawRect(
+                        x + s * .31f, y + s * .25f,
+                        x + s * .69f, y + s * .72f, paint
+                    )
+                    paint.color = Color.rgb(90, 55, 35)
+                    canvas.drawCircle(cx, y + s * .25f, s * .08f, paint)
+                    canvas.drawCircle(cx, y + s * .72f, s * .08f, paint)
+                }
+                else -> {
+                    // Gem
+                    paint.color = Color.rgb(125, 215, 235)
+                    val path = android.graphics.Path()
+                    path.moveTo(cx, y + s * .16f)
+                    path.lineTo(x + s * .78f, y + s * .40f)
+                    path.lineTo(cx, y + s * .80f)
+                    path.lineTo(x + s * .22f, y + s * .40f)
+                    path.close()
+                    canvas.drawPath(path, paint)
+                    paint.color = Color.WHITE
+                    canvas.drawCircle(
+                        x + s * .40f, y + s * .36f,
+                        s * .045f, paint
+                    )
+                }
             }
         }
 
@@ -894,42 +1124,87 @@ class MainActivity : Activity() {
         private fun newFloor() {
             map = Array(25) { CharArray(17) { '#' } }
 
-            // 部屋を作る
-            repeat(13) {
-                val roomWidth = rng.nextInt(3, 8)
-                val roomHeight = rng.nextInt(3, 7)
-                val roomX = rng.nextInt(1, 17 - roomWidth)
-                val roomY = rng.nextInt(1, 25 - roomHeight)
+            // 部屋＋通路方式。
+            // まず複数の部屋を作り、各部屋を必ず前の部屋へ通路で接続する。
+            // これにより「孤立した部屋」が発生せず、全体が一本の連結した迷宮になる。
+            data class Room(
+                val x: Int,
+                val y: Int,
+                val w: Int,
+                val h: Int
+            ) {
+                val centerX: Int get() = x + w / 2
+                val centerY: Int get() = y + h / 2
+            }
 
-                for (y in roomY until roomY + roomHeight) {
-                    for (x in roomX until roomX + roomWidth) {
-                        map[y][x] = '.'
+            val rooms = mutableListOf<Room>()
+            val maxRooms = 10
+            var attempts = 0
+
+            while (rooms.size < maxRooms && attempts < 120) {
+                attempts++
+
+                val w = rng.nextInt(3, 7)
+                val h = rng.nextInt(3, 6)
+                val x = rng.nextInt(1, 17 - w)
+                val y = rng.nextInt(1, 25 - h)
+
+                val candidate = Room(x, y, w, h)
+
+                // 部屋同士を少し離して配置。
+                val overlaps = rooms.any { room ->
+                    candidate.x - 1 < room.x + room.w &&
+                    candidate.x + candidate.w + 1 > room.x &&
+                    candidate.y - 1 < room.y + room.h &&
+                    candidate.y + candidate.h + 1 > room.y
+                }
+
+                if (!overlaps) {
+                    rooms.add(candidate)
+                }
+            }
+
+            // 部屋が少なすぎる場合でも最低限の迷宮を確保。
+            if (rooms.isEmpty()) {
+                rooms.add(Room(6, 10, 5, 5))
+            }
+
+            // 部屋を左上から順に並べ、隣接する部屋同士を必ず接続する。
+            rooms.sortWith(compareBy<Room> { it.y }.thenBy { it.x })
+
+            for (room in rooms) {
+                for (yy in room.y until room.y + room.h) {
+                    for (xx in room.x until room.x + room.w) {
+                        map[yy][xx] = '.'
                     }
                 }
             }
 
-            // 中央から必ず連続した通路を掘る。
-            // この通路は「開始地点から歩いて行ける領域」を保証する。
-            var cx = 8
-            var cy = 12
-            map[cy][cx] = '.'
-
-            repeat(180) {
-                when (rng.nextInt(4)) {
-                    0 -> cx = (cx + 1).coerceAtMost(15)
-                    1 -> cx = (cx - 1).coerceAtLeast(1)
-                    2 -> cy = (cy + 1).coerceAtMost(23)
-                    else -> cy = (cy - 1).coerceAtLeast(1)
-                }
-                map[cy][cx] = '.'
+            // 各部屋を「前の部屋」に接続。
+            // 部屋の順番に沿って通路を掘るので、全室が一つの連結成分になる。
+            for (i in 1 until rooms.size) {
+                val a = rooms[i - 1]
+                val b = rooms[i]
+                carveCorridor(a.centerX, a.centerY, b.centerX, b.centerY)
             }
 
-            // プレイヤーの開始地点は必ずこの連続通路の中央。
-            px = 8
-            py = 12
+            // 迷宮の見た目を少し複雑にするため、隣接する部屋を追加接続。
+            // ただし主経路は必ず残る。
+            for (i in 0 until rooms.size - 1) {
+                if (rng.nextBoolean()) {
+                    val a = rooms[i]
+                    val b = rooms[i + 1]
+                    carveCorridor(a.centerX, a.centerY, b.centerX, b.centerY)
+                }
+            }
+
+            // 最初の部屋の中心から開始。
+            val startRoom = rooms.first()
+            px = startRoom.centerX.coerceIn(1, 15)
+            py = startRoom.centerY.coerceIn(1, 23)
             map[py][px] = '.'
 
-            // BFSで「開始地点から実際に歩いて行ける床」だけを取得する。
+            // 到達可能領域を調査。
             val reachable = mutableSetOf<Pair<Int, Int>>()
             val queue = java.util.ArrayDeque<Pair<Int, Int>>()
             val startPos = px to py
@@ -961,8 +1236,45 @@ class MainActivity : Activity() {
                 }
             }
 
-            // 階段は「開始地点から到達可能」な床だけから選ぶ。
-            // さらに十分離れた場所を優先する。
+            // 連結確認。
+            // 通路生成に問題があった場合は、最後の部屋まで強制接続する。
+            for (i in 1 until rooms.size) {
+                val room = rooms[i]
+                if (!reachable.contains(room.centerX to room.centerY)) {
+                    val previous = rooms[i - 1]
+                    carveCorridor(
+                        previous.centerX,
+                        previous.centerY,
+                        room.centerX,
+                        room.centerY
+                    )
+                }
+            }
+
+            // もう一度到達可能領域を計算。
+            reachable.clear()
+            queue.clear()
+            reachable.add(startPos)
+            queue.add(startPos)
+
+            while (queue.isNotEmpty()) {
+                val current = queue.removeFirst()
+
+                for (dir in dirs) {
+                    val nx = current.first + dir.first
+                    val ny = current.second + dir.second
+
+                    if (nx !in 1..15 || ny !in 1..23) continue
+                    if (map[ny][nx] == '#') continue
+
+                    val next = nx to ny
+                    if (reachable.add(next)) {
+                        queue.add(next)
+                    }
+                }
+            }
+
+            // 階段は必ず到達可能な場所。
             val farCandidates = reachable
                 .filter { it != startPos }
                 .sortedByDescending {
@@ -970,12 +1282,12 @@ class MainActivity : Activity() {
                 }
 
             val stair = when {
-                farCandidates.size >= 10 -> {
-                    // 最遠点だけに固定せず、遠い範囲からランダムに選ぶ。
+                farCandidates.size >= 10 ->
                     farCandidates.take(minOf(20, farCandidates.size)).random(rng)
-                }
-                farCandidates.isNotEmpty() -> farCandidates.first()
-                else -> startPos
+                farCandidates.isNotEmpty() ->
+                    farCandidates.first()
+                else ->
+                    startPos
             }
 
             stairX = stair.first
@@ -986,15 +1298,15 @@ class MainActivity : Activity() {
             items.clear()
             enemies.clear()
 
-            // 敵も基本的に到達可能領域から配置。
             val safeTiles = reachable.filter {
                 it != startPos && it != stair
             }
 
-            repeat(5 + floorNumber) {
+            // 敵
+            repeat(5 + floorNumber.coerceAtMost(8)) {
                 val candidates = safeTiles.filter {
                     abs(it.first - px) + abs(it.second - py) > 5 &&
-                        enemies.none { e -> e.x == it.first && e.y == it.second }
+                    enemies.none { e -> e.x == it.first && e.y == it.second }
                 }
 
                 val q = candidates.randomOrNull()
@@ -1010,32 +1322,67 @@ class MainActivity : Activity() {
                 }
             }
 
+            // アイテム
             repeat(5) {
                 val candidates = safeTiles.filter {
-                    it != stair &&
-                        items.none { item -> item.x == it.first && item.y == it.second }
+                    items.none { item ->
+                        item.x == it.first && item.y == it.second
+                    }
                 }
+
                 val q = candidates.randomOrNull()
                 if (q != null) {
                     items.add(Item(q.first, q.second, rng.nextInt(5)))
                 }
             }
 
+            // 罠
             repeat(4) {
                 val candidates = safeTiles.filter {
-                    it != stair && !traps.contains(it)
+                    !traps.contains(it)
                 }
+
                 val q = candidates.randomOrNull()
                 if (q != null) {
                     traps.add(q)
                 }
             }
 
-            // 最終安全確認。
-            // 階段が壁になっていた場合は必ず床へ戻す。
+            // 最終保証
             map[stairY][stairX] = '.'
-
             invalidate()
+        }
+
+        private fun carveRoom(room: Any) {
+            // Room is local to newFloor; this helper is intentionally unused.
+        }
+
+        private fun carveCorridor(x1: Int, y1: Int, x2: Int, y2: Int) {
+            var x = x1
+            var y = y1
+
+            // 横→縦、または縦→横をランダムにして単調になりすぎないようにする。
+            if (rng.nextBoolean()) {
+                while (x != x2) {
+                    map[y][x] = '.'
+                    x += if (x2 > x) 1 else -1
+                }
+                while (y != y2) {
+                    map[y][x] = '.'
+                    y += if (y2 > y) 1 else -1
+                }
+            } else {
+                while (y != y2) {
+                    map[y][x] = '.'
+                    y += if (y2 > y) 1 else -1
+                }
+                while (x != x2) {
+                    map[y][x] = '.'
+                    x += if (x2 > x) 1 else -1
+                }
+            }
+
+            map[y][x] = '.'
         }
 
         private fun enemyName(type: Int): String =
