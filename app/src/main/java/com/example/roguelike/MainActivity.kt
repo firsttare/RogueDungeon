@@ -575,7 +575,7 @@ class MainActivity : Activity() {
             val now = System.currentTimeMillis()
 
             canvas.save()
-            canvas.translate(width / 2f, screenTop + screenDungeonHeight / 2f)
+            canvas.translate(width / 2f, screenTop + dungeonHeight / 2f)
             canvas.translate(-dungeonWidth / 2f, -dungeonHeight / 2f)
             drawAttackEffect(canvas, left, top, cell, now)
             drawDamageTexts(canvas, left, top, cell, now)
