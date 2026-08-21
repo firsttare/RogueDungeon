@@ -1243,13 +1243,13 @@ class MainActivity : Activity() {
             val h = height.toFloat()
 
             when {
-                x < w * .30f && y > h * .76f -> move(-1, 0)
-                x > w * .70f && y > h * .76f -> move(1, 0)
+                x < w * .30f && y > h * .76f -> move(0, 1)
+                x > w * .70f && y > h * .76f -> move(0, -1)
                 x in w * .35f..w * .65f &&
                         y > h * .72f &&
-                        y < h * .86f -> move(0, -1)
+                        y < h * .86f -> move(-1, 0)
                 x in w * .35f..w * .65f &&
-                        y > h * .86f -> move(0, 1)
+                        y > h * .86f -> move(1, 0)
                 x < w * .28f && y > h * .89f -> eat()
                 x in w * .28f..w * .49f && y > h * .89f -> drink()
                 x in w * .49f..w * .74f && y > h * .89f -> cast()
@@ -1335,7 +1335,9 @@ class MainActivity : Activity() {
                         else if (menuPage == 0) menuIndex = (menuIndex - 1 + 6) % 6
                         invalidate()
                     } else if (mode == 1) {
-                        move(0, -1)
+                        // The dungeon is rendered rotated 90° clockwise.
+                        // Map physical UP to the direction that is visually UP.
+                        move(-1, 0)
                     }
                     return true
                 }
@@ -1348,7 +1350,7 @@ class MainActivity : Activity() {
                         else if (menuPage == 0) menuIndex = (menuIndex + 1) % 6
                         invalidate()
                     } else if (mode == 1) {
-                        move(0, 1)
+                        move(1, 0)
                     }
                     return true
                 }
@@ -1358,7 +1360,7 @@ class MainActivity : Activity() {
                         if (settingsIndex == 0) soundEnabled = !soundEnabled
                         if (settingsIndex == 1) touchControls = !touchControls
                         saveSettings(); invalidate()
-                    } else if (mode == 1) move(-1, 0)
+                    } else if (mode == 1) move(0, 1)
                     return true
                 }
 
