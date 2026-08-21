@@ -209,6 +209,11 @@ class MainActivity : Activity() {
             paint.style = Paint.Style.FILL
         }
 
+        private fun screenMapX(mapX: Int, cell: Float, left: Float): Float =
+            left + mapYForScreen(mapX) * cell + cell / 2f
+
+        private fun mapYForScreen(mapX: Int): Int = 16 - mapX
+
         private fun drawDamageTexts(canvas: Canvas, left: Float, top: Float, cell: Float, now: Long) {
             val iterator = damageTexts.iterator()
             while (iterator.hasNext()) {
@@ -368,54 +373,48 @@ class MainActivity : Activity() {
                 return
             }
 
-            // Landscape viewport: rotate the original 17x25 map into a 25x17
-            // layout while keeping every tile perfectly square. No X stretching.
-            val hudHeight = 132f
-            val screenTop = 44f
+            // Landscape dungeon viewport.
+            // The logical map is 17 columns x 25 rows. We display it as
+            // 25 columns x 17 rows WITHOUT rotating the canvas. Each tile
+            // stays square, so the dungeon never looks vertically stretched.
+            val screenTop = 48f
             val screenBottom = if (touchControls) height * 0.70f else height * 0.90f
             val availableScreenHeight = (screenBottom - screenTop).coerceAtLeast(1f)
-            // Original map is 17 columns x 25 rows. After a 90-degree rotation
-            // it becomes 25 columns x 17 rows. Keep every tile square.
-            val fittedCell = minOf(width / 25f, availableScreenHeight / 17f).coerceAtLeast(1f)
-            val cell = fittedCell
-            val dungeonWidth = 17f * cell
-            val dungeonHeight = 25f * cell
-            val screenDungeonWidth = dungeonHeight
-            val screenDungeonHeight = dungeonWidth
-
-            canvas.save()
-            canvas.translate(width / 2f, screenTop + screenDungeonHeight / 2f)
-            canvas.rotate(90f)
-            canvas.translate(-dungeonWidth / 2f, -dungeonHeight / 2f)
-            val left = 0f
-            val top = 0f
+            val cell = minOf(width / 25f, availableScreenHeight / 17f).coerceAtLeast(1f)
+            val dungeonWidth = 25f * cell
+            val dungeonHeight = 17f * cell
+            val left = (width - dungeonWidth) / 2f
+            val top = screenTop + (availableScreenHeight - dungeonHeight) / 2f
 
             paint.textAlign = Paint.Align.CENTER
 
-            // Dungeon tiles
-            for (y in 0..24) {
-                for (x in 0..16) {
-                    val floor = map[y][x] == '.'
+            // Render the logical map rotated into a landscape layout:
+            // screenX = logicalY, screenY = 16 - logicalX.
+            for (screenY in 0..16) {
+                for (screenX in 0..24) {
+                    val mapX = 16 - screenY
+                    val mapY = screenX
+                    val floor = map[mapY][mapX] == '.'
                     paint.color = if (floor) {
-                        val shade = 62 + ((x * 13 + y * 7) % 16)
+                        val shade = 62 + ((mapX * 13 + mapY * 7) % 16)
                         Color.rgb(shade, shade - 4, shade - 10)
                     } else {
                         Color.rgb(28, 30, 36)
                     }
 
                     canvas.drawRect(
-                        left + x * cell,
-                        top + y * cell,
-                        left + (x + 1) * cell - 1.5f,
-                        top + (y + 1) * cell - 1.5f,
+                        left + screenX * cell,
+                        top + screenY * cell,
+                        left + (screenX + 1) * cell - 1.5f,
+                        top + (screenY + 1) * cell - 1.5f,
                         paint
                     )
 
-                    if (floor && (x + y) % 4 == 0) {
+                    if (floor && (mapX + mapY) % 4 == 0) {
                         paint.color = Color.rgb(82, 77, 68)
                         canvas.drawCircle(
-                            left + x * cell + cell * .28f,
-                            top + y * cell + cell * .32f,
+                            left + screenX * cell + cell * .28f,
+                            top + screenY * cell + cell * .32f,
                             maxOf(1.2f, cell * .035f),
                             paint
                         )
@@ -424,67 +423,72 @@ class MainActivity : Activity() {
                     if (!floor) {
                         paint.color = Color.rgb(42, 44, 51)
                         canvas.drawLine(
-                            left + x * cell + 2,
-                            top + y * cell + 2,
-                            left + (x + 1) * cell - 3,
-                            top + y * cell + 2,
+                            left + screenX * cell + 2,
+                            top + screenY * cell + 2,
+                            left + (screenX + 1) * cell - 3,
+                            top + screenY * cell + 2,
                             paint
                         )
                     }
                 }
             }
 
-            // Stairs: use a small neutral glyph only. No large yellow outline/frame.
-            val sx = left + stairX * cell
-            val sy = top + stairY * cell
+            // Stairs.
+            val stairScreenX = stairY
+            val stairScreenY = 16 - stairX
+            val sx = left + stairScreenX * cell
+            val sy = top + stairScreenY * cell
             paint.color = Color.rgb(185, 185, 190)
             paint.style = Paint.Style.FILL
             paint.textSize = cell * .36f
-            canvas.drawText(
-                "▼", sx + cell / 2f,
-                sy + cell * .64f, paint
-            )
+            canvas.drawText("▼", sx + cell / 2f, sy + cell * .64f, paint)
 
-            // Traps
+            // Traps.
             paint.color = Color.rgb(135, 80, 80)
             paint.textSize = cell * .42f
             for (trap in traps) {
+                val tx = trap.second
+                val ty = 16 - trap.first
                 canvas.drawText(
                     "^",
-                    left + trap.first * cell + cell / 2,
-                    top + trap.second * cell + cell * .68f,
+                    left + tx * cell + cell / 2,
+                    top + ty * cell + cell * .68f,
                     paint
                 )
             }
 
-            // Items — small pixel-art-like icons
+            // Items.
             for (item in items) {
+                val screenX = item.y
+                val screenY = 16 - item.x
                 drawItemSprite(
                     canvas,
-                    left + item.x * cell,
-                    top + item.y * cell,
+                    left + screenX * cell,
+                    top + screenY * cell,
                     cell,
                     item.type
                 )
             }
 
-            // Enemies — each type has its own silhouette/face
+            // Enemies.
             for (enemy in enemies) {
+                val screenX = enemy.y
+                val screenY = 16 - enemy.x
                 drawEnemySprite(
                     canvas,
-                    left + enemy.x * cell,
-                    top + enemy.y * cell,
+                    left + screenX * cell,
+                    top + screenY * cell,
                     cell,
                     enemy.type,
                     enemy.sleep > 0
                 )
             }
 
-            // Player — readable little adventurer sprite
+            // Player.
             drawPlayerSprite(
                 canvas,
-                left + px * cell,
-                top + py * cell,
+                left + py * cell,
+                top + (16 - px) * cell,
                 cell
             )
 
@@ -514,9 +518,7 @@ class MainActivity : Activity() {
                 width * .78f, 28f, paint
             )
 
-            // End rotated dungeon geometry before the upright HUD.
-            canvas.restore()
-            val hudBase = screenTop + screenDungeonHeight
+            val hudBase = top + dungeonHeight
 
             // HP / hunger bars
             val barLeft = 12f
@@ -574,7 +576,6 @@ class MainActivity : Activity() {
 
             canvas.save()
             canvas.translate(width / 2f, screenTop + screenDungeonHeight / 2f)
-            canvas.rotate(90f)
             canvas.translate(-dungeonWidth / 2f, -dungeonHeight / 2f)
             drawAttackEffect(canvas, left, top, cell, now)
             drawDamageTexts(canvas, left, top, cell, now)
@@ -1243,13 +1244,13 @@ class MainActivity : Activity() {
             val h = height.toFloat()
 
             when {
-                x < w * .30f && y > h * .76f -> move(0, 1)
-                x > w * .70f && y > h * .76f -> move(0, -1)
+                x < w * .30f && y > h * .76f -> move(0, -1)   // ←
+                x > w * .70f && y > h * .76f -> move(0, 1)    // →
                 x in w * .35f..w * .65f &&
                         y > h * .72f &&
-                        y < h * .86f -> move(-1, 0)
+                        y < h * .86f -> move(1, 0)             // ↑
                 x in w * .35f..w * .65f &&
-                        y > h * .86f -> move(1, 0)
+                        y > h * .86f -> move(-1, 0)             // ↓
                 x < w * .28f && y > h * .89f -> eat()
                 x in w * .28f..w * .49f && y > h * .89f -> drink()
                 x in w * .49f..w * .74f && y > h * .89f -> cast()
@@ -1335,9 +1336,8 @@ class MainActivity : Activity() {
                         else if (menuPage == 0) menuIndex = (menuIndex - 1 + 6) % 6
                         invalidate()
                     } else if (mode == 1) {
-                        // The dungeon is rendered rotated 90° clockwise.
-                        // Map physical UP to the direction that is visually UP.
-                        move(-1, 0)
+                        // Screen direction: UP.
+                        move(1, 0)
                     }
                     return true
                 }
@@ -1369,7 +1369,7 @@ class MainActivity : Activity() {
                         if (settingsIndex == 0) soundEnabled = !soundEnabled
                         if (settingsIndex == 1) touchControls = !touchControls
                         saveSettings(); invalidate()
-                    } else if (mode == 1) move(1, 0)
+                    } else if (mode == 1) move(0, 1)
                     return true
                 }
 
