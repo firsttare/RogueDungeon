@@ -666,16 +666,6 @@ class MainActivity : Activity() {
                 paint
             )
 
-            // Touch controls remain available.
-            button(canvas, width * .16f, height * .82f, "←")
-            button(canvas, width * .50f, height * .77f, "↑")
-            button(canvas, width * .84f, height * .82f, "→")
-            button(canvas, width * .50f, height * .90f, "↓")
-            button(canvas, width * .16f, height * .93f, "食")
-            button(canvas, width * .37f, height * .93f, "薬")
-            button(canvas, width * .63f, height * .93f, "杖")
-            button(canvas, width * .84f, height * .93f, "弓")
-
             if (touchControls) {
                 button(canvas, width * .16f, height * .82f, "←")
                 button(canvas, width * .50f, height * .77f, "↑")
@@ -1335,9 +1325,8 @@ class MainActivity : Activity() {
                         if (menuPage == 4) settingsIndex = (settingsIndex + 2) % 3
                         else if (menuPage == 0) menuIndex = (menuIndex - 1 + 6) % 6
                         invalidate()
-                    } else if (mode == 1) {
-                        // Screen direction: UP.
-                        move(1, 0)
+                     } else if (mode == 1) {
+                        move(0, -1)
                     }
                     return true
                 }
@@ -1349,8 +1338,8 @@ class MainActivity : Activity() {
                         if (menuPage == 4) settingsIndex = (settingsIndex + 1) % 3
                         else if (menuPage == 0) menuIndex = (menuIndex + 1) % 6
                         invalidate()
-                    } else if (mode == 1) {
-                        move(1, 0)
+                     } else if (mode == 1) {
+                        move(0, 1)
                     }
                     return true
                 }
@@ -1360,7 +1349,7 @@ class MainActivity : Activity() {
                         if (settingsIndex == 0) soundEnabled = !soundEnabled
                         if (settingsIndex == 1) touchControls = !touchControls
                         saveSettings(); invalidate()
-                    } else if (mode == 1) move(0, 1)
+                     } else if (mode == 1) move(-1, 0)
                     return true
                 }
 
@@ -1369,7 +1358,7 @@ class MainActivity : Activity() {
                         if (settingsIndex == 0) soundEnabled = !soundEnabled
                         if (settingsIndex == 1) touchControls = !touchControls
                         saveSettings(); invalidate()
-                    } else if (mode == 1) move(0, 1)
+                    } else if (mode == 1) move(1, 0)
                     return true
                 }
 
