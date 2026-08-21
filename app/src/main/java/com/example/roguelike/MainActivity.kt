@@ -370,29 +370,17 @@ class MainActivity : Activity() {
 
             val hudHeight = 132f
             val top = 28f
-            val cell = minOf(
-                width / 17f,
-                (height - hudHeight - top - 8f) / 25f
-            )
-            val dungeonWidth = 17f * cell
-            val dungeonHeight = 25f * cell
-            // 横長ゲーム機向け：ダンジョンを画面左端から幅いっぱいに描画する。
-            // X方向だけを拡大するので、左右に黒い余白を残さない。
-            val left = 0f
-            canvas.save()
-            val stretchX = width / dungeonWidth
-            canvas.scale(stretchX, 1f)
-            val renderWidth = width / stretchX
+            val topUi = height * 0.08f
+            val bottomUi = if (touchControls) height * 0.78f else height * 0.94f
+            val availableH = (bottomUi - topUi).coerceAtLeast(1f)
+            val cell = minOf(width / 25f, availableH / 17f)
+            val dungeonW = 25f * cell
+            val dungeonH = 17f * cell
+            val left = (width - dungeonW) / 2f
+            val top = topUi + (availableH - dungeonH) / 2f
+
             paint.textAlign = Paint.Align.CENTER
 
-            // Dungeon frame
-            paint.color = Color.rgb(20, 22, 28)
-            canvas.drawRoundRect(
-                left - 7f, top - 7f,
-                left + 17 * cell + 7f,
-                top + 25 * cell + 7f,
-                10f, 10f, paint
-            )
 
             // Dungeon tiles
             // Compact dungeon title strip
@@ -425,41 +413,42 @@ class MainActivity : Activity() {
             paint.textAlign = Paint.Align.CENTER
             paint.typeface = Typeface.DEFAULT
 
-            for (y in 0..24) {
-                for (x in 0..16) {
-                    val floor = map[y][x] == '.'
+            // Landscape viewport: render the 25x17 map rotated into a 25x17
+            // screen grid while keeping every tile square.
+            for (my in 0..24) {
+                for (mx in 0..16) {
+                    val floor = map[my][mx] == '#'.not()
+                    val vx = my
+                    val vy = 16 - mx
                     paint.color = if (floor) {
-                        val shade = 62 + ((x * 13 + y * 7) % 16)
+                        val shade = 62 + ((mx * 13 + my * 7) % 16)
                         Color.rgb(shade, shade - 4, shade - 10)
                     } else {
                         Color.rgb(28, 30, 36)
                     }
-
                     canvas.drawRect(
-                        left + x * cell,
-                        top + y * cell,
-                        left + (x + 1) * cell - 1.5f,
-                        top + (y + 1) * cell - 1.5f,
+                        left + vx * cell,
+                        top + vy * cell,
+                        left + (vx + 1) * cell - 1.5f,
+                        top + (vy + 1) * cell - 1.5f,
                         paint
                     )
-
-                    if (floor && (x + y) % 4 == 0) {
+                    if (floor && (mx + my) % 4 == 0) {
                         paint.color = Color.rgb(82, 77, 68)
                         canvas.drawCircle(
-                            left + x * cell + cell * .28f,
-                            top + y * cell + cell * .32f,
+                            left + vx * cell + cell * .28f,
+                            top + vy * cell + cell * .32f,
                             maxOf(1.2f, cell * .035f),
                             paint
                         )
                     }
-
                     if (!floor) {
                         paint.color = Color.rgb(42, 44, 51)
                         canvas.drawLine(
-                            left + x * cell + 2,
-                            top + y * cell + 2,
-                            left + (x + 1) * cell - 3,
-                            top + y * cell + 2,
+                            left + vx * cell + 2,
+                            top + vy * cell + 2,
+                            left + (vx + 1) * cell - 3,
+                            top + vy * cell + 2,
                             paint
                         )
                     }
@@ -467,32 +456,20 @@ class MainActivity : Activity() {
             }
 
             // Stairs
-            val sx = left + stairX * cell
-            val sy = top + stairY * cell
+            val sx = left + stairY * cell
+            val sy = top + (16 - stairX) * cell
 
             paint.color = Color.rgb(120, 95, 35)
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 7f
+            paint.strokeWidth = 5f
             canvas.drawCircle(
-                sx + cell / 2f,
-                sy + cell / 2f,
-                cell * .38f,
-                paint
+                sx + cell / 2f, sy + cell / 2f, cell * .34f, paint
             )
-
-            paint.color = Color.rgb(255, 215, 70)
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 3f
-            canvas.drawRect(
-                sx + cell * .22f, sy + cell * .18f,
-                sx + cell * .78f, sy + cell * .82f, paint
-            )
+            paint.color = Color.rgb(190, 170, 100)
             paint.style = Paint.Style.FILL
-            paint.textSize = cell * .48f
-            canvas.drawText(
-                "▼", sx + cell / 2,
-                sy + cell * .66f, paint
-            )
+            paint.textSize = cell * .42f
+            canvas.drawText("▼", sx + cell / 2, sy + cell * .64f, paint)
+            paint.style = Paint.Style.FILL
 
             // Traps
             paint.color = Color.rgb(135, 80, 80)
@@ -500,8 +477,8 @@ class MainActivity : Activity() {
             for (trap in traps) {
                 canvas.drawText(
                     "^",
-                    left + trap.first * cell + cell / 2,
-                    top + trap.second * cell + cell * .68f,
+                    left + trap.second * cell + cell / 2,
+                    top + (16 - trap.first) * cell + cell * .68f,
                     paint
                 )
             }
@@ -510,8 +487,8 @@ class MainActivity : Activity() {
             for (item in items) {
                 drawItemSprite(
                     canvas,
-                    left + item.x * cell,
-                    top + item.y * cell,
+                    left + item.y * cell,
+                    top + (16 - item.x) * cell,
                     cell,
                     item.type
                 )
@@ -521,8 +498,8 @@ class MainActivity : Activity() {
             for (enemy in enemies) {
                 drawEnemySprite(
                     canvas,
-                    left + enemy.x * cell,
-                    top + enemy.y * cell,
+                    left + enemy.y * cell,
+                    top + (16 - enemy.x) * cell,
                     cell,
                     enemy.type,
                     enemy.sleep > 0
@@ -628,26 +605,7 @@ class MainActivity : Activity() {
             }
 
             // HUD panel
-            // Dungeon frame / polished arcade-style border
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 3f
-            paint.color = Color.rgb(118, 105, 74)
-            canvas.drawRect(
-                left - 4f,
-                top - 4f,
-                left + dungeonWidth + 4f,
-                top + dungeonHeight + 4f,
-                paint
-            )
-            paint.strokeWidth = 1f
-            paint.color = Color.rgb(52, 55, 65)
-            canvas.drawRect(
-                left - 8f,
-                top - 8f,
-                left + dungeonWidth + 8f,
-                top + dungeonHeight + 8f,
-                paint
-            )
+            // No decorative dungeon border: keep the map unobstructed.
             paint.style = Paint.Style.FILL
 
             // EXP bar
@@ -995,15 +953,6 @@ class MainActivity : Activity() {
             canvas.drawColor(Color.rgb(7, 8, 12))
 
             paint.color = Color.rgb(24, 26, 34)
-            canvas.drawRoundRect(
-                width * .08f, height * .06f,
-                width * .92f, height * .94f,
-                18f, 18f, paint
-            )
-
-            paint.color = Color.rgb(65, 68, 80)
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 3f
             canvas.drawRoundRect(
                 width * .08f, height * .06f,
                 width * .92f, height * .94f,
