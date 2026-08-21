@@ -69,6 +69,8 @@ class MainActivity : Activity() {
         private var menuPage = 0
         private var titleIndex = 0
         private var settingsIndex = 0
+        private var settingsReturnMode = 0
+        private var settingsReturnMenuPage = 0
         private var touchControls = prefs.getBoolean("touchControls", true)
         private var soundEnabled = prefs.getBoolean("soundEnabled", true)
         private var map = Array(25) { CharArray(17) { '#' } }
@@ -113,6 +115,21 @@ class MainActivity : Activity() {
         private val traps = mutableSetOf<Pair<Int, Int>>()
         private val items = mutableListOf<Item>()
         private val enemies = mutableListOf<Enemy>()
+
+        private fun openSettings(returnMode: Int, returnMenuPage: Int) {
+            settingsReturnMode = returnMode
+            settingsReturnMenuPage = returnMenuPage
+            mode = 3
+            menuPage = 4
+            settingsIndex = 0
+            invalidate()
+        }
+
+        private fun closeSettings() {
+            mode = settingsReturnMode
+            menuPage = settingsReturnMenuPage
+            invalidate()
+        }
 
         private fun saveSettings() {
             prefs.edit()
@@ -359,8 +376,13 @@ class MainActivity : Activity() {
             )
             val dungeonWidth = 17f * cell
             val dungeonHeight = 25f * cell
-            val left = (width - dungeonWidth) / 2f
-
+            // 横長ゲーム機向け：ダンジョンを画面左端から幅いっぱいに描画する。
+            // X方向だけを拡大するので、左右に黒い余白を残さない。
+            val left = 0f
+            canvas.save()
+            val stretchX = width / dungeonWidth
+            canvas.scale(stretchX, 1f)
+            val renderWidth = width / stretchX
             paint.textAlign = Paint.Align.CENTER
 
             // Dungeon frame
@@ -514,6 +536,8 @@ class MainActivity : Activity() {
                 top + py * cell,
                 cell
             )
+
+            canvas.restore()
 
             // Top HUD
             paint.color = Color.rgb(18, 20, 27)
@@ -1203,11 +1227,13 @@ class MainActivity : Activity() {
             if (event.action != MotionEvent.ACTION_UP) return true
 
             if (mode == 0) {
-                if (event.y > height * .52f && event.y < height * .72f) {
-                    mode = 3
-                    menuPage = 4
-                    settingsIndex = 0
-                } else newGame()
+                if (event.y > height * .42f && event.y < height * .58f) {
+                    titleIndex = 0
+                    newGame()
+                } else if (event.y >= height * .58f && event.y < height * .75f) {
+                    titleIndex = 1
+                    openSettings(0, 0)
+                }
                 invalidate()
                 return true
             }
@@ -1220,6 +1246,10 @@ class MainActivity : Activity() {
 
             if (mode == 3) {
                 if (menuPage == 4) {
+                    if (event.y > height * .82f) {
+                        closeSettings()
+                        return true
+                    }
                     val selected = ((event.y - height*.29f + height*.06f) / (height*.12f)).toInt().coerceIn(0,2)
                     settingsIndex = selected
                     if (selected == 0) soundEnabled = !soundEnabled
@@ -1244,7 +1274,7 @@ class MainActivity : Activity() {
                         0 -> menuPage = 1
                         1 -> menuPage = 2
                         2 -> menuPage = 3
-                        3 -> menuPage = 4
+                        3 -> openSettings(1, 0)
                         4 -> mode = 1
                         5 -> mode = 0
                     }
@@ -1291,7 +1321,7 @@ class MainActivity : Activity() {
                 key == android.view.KeyEvent.KEYCODE_ENTER) {
                 if (mode == 0) {
                     if (titleIndex == 0) newGame()
-                    else { mode = 3; menuPage = 4; settingsIndex = 0; invalidate() }
+                    else { openSettings(0, 0) }
                 } else if (gameOver) {
                     mode = 0
                     invalidate()
@@ -1305,7 +1335,7 @@ class MainActivity : Activity() {
                             0 -> menuPage = 1
                             1 -> menuPage = 2
                             2 -> menuPage = 3
-                            3 -> menuPage = 4
+                            3 -> openSettings(1, 0)
                             4 -> mode = 1
                             5 -> mode = 0
                         }
@@ -1319,12 +1349,15 @@ class MainActivity : Activity() {
             if (key == android.view.KeyEvent.KEYCODE_BUTTON_B ||
                 key == android.view.KeyEvent.KEYCODE_ESCAPE) {
                 if (mode == 3) {
-                    if (menuPage != 0) {
+                    if (menuPage == 4) {
+                        closeSettings()
+                    } else if (menuPage != 0) {
                         menuPage = 0
+                        invalidate()
                     } else {
                         mode = 1
+                        invalidate()
                     }
-                    invalidate()
                 }
                 return true
             }
@@ -1805,7 +1838,7 @@ class MainActivity : Activity() {
             triggerAttackEffect(px, py, attackDx, attackDy)
             showDamage(enemy.x, enemy.y, damage, damage >= 10)
 
-            tone.startTone(ToneGenerator.TONE_PROP_ACK, 70)
+            if (soundEnabled) tone.startTone(ToneGenerator.TONE_PROP_ACK, 70)
             message = "攻撃！ $damage ダメージ"
 
             if (enemy.hp <= 0) {
