@@ -368,87 +368,64 @@ class MainActivity : Activity() {
                 return
             }
 
+            // Landscape viewport: rotate the original 17x25 map into a 25x17
+            // layout while keeping every tile perfectly square. No X stretching.
             val hudHeight = 132f
-            val top = 28f
-            val topUi = height * 0.08f
-            val bottomUi = if (touchControls) height * 0.78f else height * 0.94f
-            val availableH = (bottomUi - topUi).coerceAtLeast(1f)
-            val cell = minOf(width / 25f, availableH / 17f)
-            val dungeonW = 25f * cell
-            val dungeonH = 17f * cell
-            val left = (width - dungeonW) / 2f
-            val top = topUi + (availableH - dungeonH) / 2f
+            val cell = fittedCell
+            val dungeonWidth = 17f * cell
+            val dungeonHeight = 25f * cell
+            val screenDungeonWidth = dungeonHeight
+            val screenDungeonHeight = dungeonWidth
+            val screenTop = 44f
+            val screenBottom = if (touchControls) height * 0.70f else height * 0.90f
+            val availableScreenHeight = (screenBottom - screenTop).coerceAtLeast(1f)
+            val fittedCell = minOf(width / 25f, availableScreenHeight / 17f).coerceAtLeast(1f)
+
+            canvas.save()
+            canvas.translate(width / 2f, screenTop + screenDungeonHeight / 2f)
+            canvas.rotate(90f)
+            canvas.translate(-dungeonWidth / 2f, -dungeonHeight / 2f)
+            val left = 0f
+            val top = 0f
 
             paint.textAlign = Paint.Align.CENTER
-
 
             // Dungeon tiles
-            // Compact dungeon title strip
-            paint.style = Paint.Style.FILL
-            paint.color = Color.rgb(12, 14, 19)
-            canvas.drawRoundRect(
-                left,
-                2f,
-                left + dungeonWidth,
-                top - 7f,
-                6f, 6f, paint
-            )
-            paint.color = Color.rgb(218, 191, 112)
-            paint.textSize = 13f
-            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            canvas.drawText(
-                "ROGUE DUNGEON",
-                left + 12f,
-                top - 12f,
-                paint
-            )
-            paint.color = Color.LTGRAY
-            paint.textSize = 11f
-            canvas.drawText(
-                "FLOOR $floorNumber",
-                left + dungeonWidth - 12f,
-                top - 12f,
-                paint.apply { textAlign = Paint.Align.RIGHT }
-            )
-            paint.textAlign = Paint.Align.CENTER
-            paint.typeface = Typeface.DEFAULT
-
-            // Landscape viewport: render the 25x17 map rotated into a 25x17
-            // screen grid while keeping every tile square.
-            for (my in 0..24) {
-                for (mx in 0..16) {
-                    val floor = map[my][mx] == '#'.not()
-                    val vx = my
-                    val vy = 16 - mx
+            for (y in 0..24) {
+                for (x in 0..16) {
+                    val floor = map[y][x] == '.'
                     paint.color = if (floor) {
-                        val shade = 62 + ((mx * 13 + my * 7) % 16)
+                        val shade = 62 + ((x * 13 + y * 7) % 16)
                         Color.rgb(shade, shade - 4, shade - 10)
                     } else {
                         Color.rgb(28, 30, 36)
                     }
+
                     canvas.drawRect(
-                        left + vx * cell,
-                        top + vy * cell,
-                        left + (vx + 1) * cell - 1.5f,
-                        top + (vy + 1) * cell - 1.5f,
+                        left + x * cell,
+                        top + y * cell,
+                        left + (x + 1) * cell - 1.5f,
+                        top + (y + 1) * cell - 1.5f,
                         paint
                     )
-                    if (floor && (mx + my) % 4 == 0) {
+
+                    if (floor && (x + y) % 4 == 0) {
                         paint.color = Color.rgb(82, 77, 68)
                         canvas.drawCircle(
-                            left + vx * cell + cell * .28f,
-                            top + vy * cell + cell * .32f,
+                            left + x * cell + cell * .28f,
+                            top + y * cell + cell * .32f,
                             maxOf(1.2f, cell * .035f),
                             paint
                         )
                     }
+
                     if (!floor) {
                         paint.color = Color.rgb(42, 44, 51)
                         canvas.drawLine(
-                            left + vx * cell + 2,
-                            top + vy * cell + 2,
-                            left + (vx + 1) * cell - 3,
-                            top + vy * cell + 2,
+                            left + x * cell + 2,
+                            top + y * cell + 2,
+                            left + (x + 1) * cell - 3,
+                            top + y * cell + 2,
                             paint
                         )
                     }
@@ -456,20 +433,26 @@ class MainActivity : Activity() {
             }
 
             // Stairs
-            val sx = left + stairY * cell
-            val sy = top + (16 - stairX) * cell
+            val sx = left + stairX * cell
+            val sy = top + stairY * cell
 
             paint.color = Color.rgb(120, 95, 35)
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 5f
+            paint.strokeWidth = 7f
             canvas.drawCircle(
-                sx + cell / 2f, sy + cell / 2f, cell * .34f, paint
+                sx + cell / 2f,
+                sy + cell / 2f,
+                cell * .38f,
+                paint
             )
+
             paint.color = Color.rgb(190, 170, 100)
             paint.style = Paint.Style.FILL
             paint.textSize = cell * .42f
-            canvas.drawText("▼", sx + cell / 2, sy + cell * .64f, paint)
-            paint.style = Paint.Style.FILL
+            canvas.drawText(
+                "▼", sx + cell / 2,
+                sy + cell * .66f, paint
+            )
 
             // Traps
             paint.color = Color.rgb(135, 80, 80)
@@ -477,8 +460,8 @@ class MainActivity : Activity() {
             for (trap in traps) {
                 canvas.drawText(
                     "^",
-                    left + trap.second * cell + cell / 2,
-                    top + (16 - trap.first) * cell + cell * .68f,
+                    left + trap.first * cell + cell / 2,
+                    top + trap.second * cell + cell * .68f,
                     paint
                 )
             }
@@ -487,8 +470,8 @@ class MainActivity : Activity() {
             for (item in items) {
                 drawItemSprite(
                     canvas,
-                    left + item.y * cell,
-                    top + (16 - item.x) * cell,
+                    left + item.x * cell,
+                    top + item.y * cell,
                     cell,
                     item.type
                 )
@@ -498,8 +481,8 @@ class MainActivity : Activity() {
             for (enemy in enemies) {
                 drawEnemySprite(
                     canvas,
-                    left + enemy.y * cell,
-                    top + (16 - enemy.x) * cell,
+                    left + enemy.x * cell,
+                    top + enemy.y * cell,
                     cell,
                     enemy.type,
                     enemy.sleep > 0
@@ -513,8 +496,6 @@ class MainActivity : Activity() {
                 top + py * cell,
                 cell
             )
-
-            canvas.restore()
 
             // Top HUD
             paint.color = Color.rgb(18, 20, 27)
@@ -542,6 +523,10 @@ class MainActivity : Activity() {
                 width * .78f, 28f, paint
             )
 
+            // End rotated dungeon geometry before the upright HUD.
+            canvas.restore()
+            val hudBase = screenTop + screenDungeonHeight
+
             // HP / hunger bars
             val barLeft = 12f
             val barRight = width - 12f
@@ -549,33 +534,33 @@ class MainActivity : Activity() {
 
             paint.color = Color.rgb(35, 37, 43)
             canvas.drawRoundRect(
-                barLeft, top + dungeonHeight + 8f,
-                barRight, top + dungeonHeight + 16f,
+                barLeft, hudBase + 8f,
+                barRight, hudBase + 16f,
                 5f, 5f, paint
             )
 
             paint.color = Color.rgb(210, 55, 65)
             val hpRatio = (hp.toFloat() / maxHp.coerceAtLeast(1)).coerceIn(0f, 1f)
             canvas.drawRoundRect(
-                barLeft, top + dungeonHeight + 8f,
+                barLeft, hudBase + 8f,
                 barLeft + barWidth * hpRatio,
-                top + dungeonHeight + 16f,
+                hudBase + 16f,
                 5f, 5f, paint
             )
 
             paint.color = Color.rgb(35, 37, 43)
             canvas.drawRoundRect(
-                barLeft, top + dungeonHeight + 26f,
-                barRight, top + dungeonHeight + 34f,
+                barLeft, hudBase + 26f,
+                barRight, hudBase + 34f,
                 5f, 5f, paint
             )
 
             paint.color = Color.rgb(205, 150, 55)
             val hungerRatio = (hunger / 100f).coerceIn(0f, 1f)
             canvas.drawRoundRect(
-                barLeft, top + dungeonHeight + 26f,
+                barLeft, hudBase + 26f,
                 barLeft + barWidth * hungerRatio,
-                top + dungeonHeight + 34f,
+                hudBase + 34f,
                 5f, 5f, paint
             )
 
@@ -584,52 +569,56 @@ class MainActivity : Activity() {
             canvas.drawText(
                 "HP",
                 barLeft + 20f,
-                top + dungeonHeight + 25f,
+                hudBase + 25f,
                 paint
             )
             canvas.drawText(
                 "満腹 $hunger",
                 barLeft + 48f,
-                top + dungeonHeight + 42f,
+                hudBase + 42f,
                 paint
             )
 
             val now = System.currentTimeMillis()
 
+            canvas.save()
+            canvas.translate(width / 2f, screenTop + screenDungeonHeight / 2f)
+            canvas.rotate(90f)
+            canvas.translate(-dungeonWidth / 2f, -dungeonHeight / 2f)
             drawAttackEffect(canvas, left, top, cell, now)
             drawDamageTexts(canvas, left, top, cell, now)
             drawPickupEffect(canvas, left, top, cell, now)
-
             for (enemy in enemies) {
                 drawEnemyHpBar(canvas, left, top, cell, enemy)
             }
+            canvas.restore()
 
             // HUD panel
-            // No decorative dungeon border: keep the map unobstructed.
+            // No decorative dungeon frame.
             paint.style = Paint.Style.FILL
 
             // EXP bar
             paint.color = Color.rgb(35, 37, 43)
             canvas.drawRoundRect(
-                barLeft, top + dungeonHeight + 58f,
-                barRight, top + dungeonHeight + 64f,
+                barLeft, hudBase + 58f,
+                barRight, hudBase + 64f,
                 3f, 3f, paint
             )
             paint.color = Color.rgb(90, 150, 220)
             val expNeed = (level * 5).coerceAtLeast(1)
             val expRatio = (exp.toFloat() / expNeed).coerceIn(0f, 1f)
             canvas.drawRoundRect(
-                barLeft, top + dungeonHeight + 58f,
+                barLeft, hudBase + 58f,
                 barLeft + barWidth * expRatio,
-                top + dungeonHeight + 64f,
+                hudBase + 64f,
                 3f, 3f, paint
             )
 
             // Equipment strip
             paint.color = Color.rgb(18, 20, 27)
             canvas.drawRoundRect(
-                8f, top + dungeonHeight + 68f,
-                width - 8f, top + dungeonHeight + 101f,
+                8f, hudBase + 68f,
+                width - 8f, hudBase + 101f,
                 8f, 8f, paint
             )
 
@@ -637,32 +626,32 @@ class MainActivity : Activity() {
             paint.textSize = 12f
             canvas.drawText(
                 "剣 ${sword + swordPlus}",
-                width * .12f, top + dungeonHeight + 89f, paint
+                width * .12f, hudBase + 89f, paint
             )
             canvas.drawText(
                 "盾 +$shieldPlus",
-                width * .30f, top + dungeonHeight + 89f, paint
+                width * .30f, hudBase + 89f, paint
             )
             canvas.drawText(
                 "矢 $arrows",
-                width * .48f, top + dungeonHeight + 89f, paint
+                width * .48f, hudBase + 89f, paint
             )
             canvas.drawText(
                 "食 $food",
-                width * .66f, top + dungeonHeight + 89f, paint
+                width * .66f, hudBase + 89f, paint
             )
             canvas.drawText(
                 "薬 $potions",
-                width * .84f, top + dungeonHeight + 89f, paint
+                width * .84f, hudBase + 89f, paint
             )
 
             // Message window
             paint.color = Color.rgb(17, 18, 24)
             canvas.drawRoundRect(
                 10f,
-                top + dungeonHeight + 106f,
+                hudBase + 106f,
                 width - 10f,
-                top + dungeonHeight + 132f,
+                hudBase + 132f,
                 7f, 7f, paint
             )
             paint.color = Color.rgb(75, 78, 90)
@@ -670,9 +659,9 @@ class MainActivity : Activity() {
             paint.strokeWidth = 1.5f
             canvas.drawRoundRect(
                 10f,
-                top + dungeonHeight + 106f,
+                hudBase + 106f,
                 width - 10f,
-                top + dungeonHeight + 132f,
+                hudBase + 132f,
                 7f, 7f, paint
             )
             paint.style = Paint.Style.FILL
@@ -681,9 +670,19 @@ class MainActivity : Activity() {
             canvas.drawText(
                 if (message.isBlank()) "迷宮を探索しよう……" else message,
                 width / 2f,
-                top + dungeonHeight + 117f,
+                hudBase + 117f,
                 paint
             )
+
+            // Touch controls remain available.
+            button(canvas, width * .16f, height * .82f, "←")
+            button(canvas, width * .50f, height * .77f, "↑")
+            button(canvas, width * .84f, height * .82f, "→")
+            button(canvas, width * .50f, height * .90f, "↓")
+            button(canvas, width * .16f, height * .93f, "食")
+            button(canvas, width * .37f, height * .93f, "薬")
+            button(canvas, width * .63f, height * .93f, "杖")
+            button(canvas, width * .84f, height * .93f, "弓")
 
             if (touchControls) {
                 button(canvas, width * .16f, height * .82f, "←")
@@ -953,6 +952,15 @@ class MainActivity : Activity() {
             canvas.drawColor(Color.rgb(7, 8, 12))
 
             paint.color = Color.rgb(24, 26, 34)
+            canvas.drawRoundRect(
+                width * .08f, height * .06f,
+                width * .92f, height * .94f,
+                18f, 18f, paint
+            )
+
+            paint.color = Color.rgb(65, 68, 80)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 3f
             canvas.drawRoundRect(
                 width * .08f, height * .06f,
                 width * .92f, height * .94f,
