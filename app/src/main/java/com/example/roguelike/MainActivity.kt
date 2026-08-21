@@ -67,6 +67,10 @@ class MainActivity : Activity() {
         private var mode = 0
         private var menuIndex = 0
         private var menuPage = 0
+        private var titleIndex = 0
+        private var settingsIndex = 0
+        private var touchControls = prefs.getBoolean("touchControls", true)
+        private var soundEnabled = prefs.getBoolean("soundEnabled", true)
         private var map = Array(25) { CharArray(17) { '#' } }
         private var px = 8
         private var py = 12
@@ -109,6 +113,13 @@ class MainActivity : Activity() {
         private val traps = mutableSetOf<Pair<Int, Int>>()
         private val items = mutableListOf<Item>()
         private val enemies = mutableListOf<Enemy>()
+
+        private fun saveSettings() {
+            prefs.edit()
+                .putBoolean("touchControls", touchControls)
+                .putBoolean("soundEnabled", soundEnabled)
+                .apply()
+        }
 
         private fun triggerAttackEffect(x: Int, y: Int, dx: Int, dy: Int) {
             attackFxX = x
@@ -692,15 +703,16 @@ class MainActivity : Activity() {
                 paint
             )
 
-            // Touch controls remain available.
-            button(canvas, width * .16f, height * .82f, "←")
-            button(canvas, width * .50f, height * .77f, "↑")
-            button(canvas, width * .84f, height * .82f, "→")
-            button(canvas, width * .50f, height * .90f, "↓")
-            button(canvas, width * .16f, height * .93f, "食")
-            button(canvas, width * .37f, height * .93f, "薬")
-            button(canvas, width * .63f, height * .93f, "杖")
-            button(canvas, width * .84f, height * .93f, "弓")
+            if (touchControls) {
+                button(canvas, width * .16f, height * .82f, "←")
+                button(canvas, width * .50f, height * .77f, "↑")
+                button(canvas, width * .84f, height * .82f, "→")
+                button(canvas, width * .50f, height * .90f, "↓")
+                button(canvas, width * .16f, height * .93f, "食")
+                button(canvas, width * .37f, height * .93f, "薬")
+                button(canvas, width * .63f, height * .93f, "杖")
+                button(canvas, width * .84f, height * .93f, "弓")
+            }
 
             if (gameOver) {
                 paint.color = Color.argb(225, 0, 0, 0)
@@ -1114,20 +1126,30 @@ class MainActivity : Activity() {
         }
 
         private fun drawSettingsPage(canvas: Canvas) {
-            panelText(
-                canvas,
-                "設定",
-                listOf(
-                    "効果音              ON",
-                    "タッチ操作          ON",
-                    "コントローラー      ON",
-                    "",
-                    "現在のバージョン",
-                    "迷宮の旅人 DX",
-                    "",
-                    "※ 設定項目は今後追加できます。"
-                )
+            paint.color = Color.YELLOW
+            paint.textSize = 27f
+            canvas.drawText("設定", width / 2f, height * .15f, paint)
+            val entries = arrayOf(
+                "効果音              ${if (soundEnabled) "ON" else "OFF"}",
+                "タッチ操作          ${if (touchControls) "表示" else "非表示"}",
+                "コントローラー      ON"
             )
+            paint.textSize = 19f
+            entries.forEachIndexed { i, text ->
+                val y = height * .29f + i * height * .12f
+                if (i == settingsIndex) {
+                    paint.color = Color.rgb(65,72,92)
+                    canvas.drawRoundRect(width*.16f,y-28f,width*.84f,y+12f,8f,8f,paint)
+                    paint.color = Color.YELLOW
+                    canvas.drawText("▶ $text",width/2f,y,paint)
+                } else {
+                    paint.color = Color.WHITE
+                    canvas.drawText(text,width/2f,y,paint)
+                }
+            }
+            paint.color = Color.GRAY
+            paint.textSize = 13f
+            canvas.drawText("↑↓ 選択    ←→ / A 変更    B 戻る",width/2f,height*.89f,paint)
         }
 
         private fun drawStatus(canvas: Canvas) {
@@ -1138,49 +1160,20 @@ class MainActivity : Activity() {
             paint.textAlign = Paint.Align.CENTER
             paint.color = Color.WHITE
             paint.textSize = 38f
-            canvas.drawText("迷宮の旅人", width / 2f, height * .28f, paint)
-
+            canvas.drawText("迷宮の旅人", width / 2f, height * .24f, paint)
             paint.textSize = 18f
             paint.color = Color.LTGRAY
-            canvas.drawText("ターン制ローグライク DX", width / 2f, height * .34f, paint)
-
-            paint.textSize = 20f
-            paint.color = Color.YELLOW
-            canvas.drawText("画面をタップして開始", width / 2f, height * .52f, paint)
-
+            canvas.drawText("ターン制ローグライク DX", width / 2f, height * .30f, paint)
+            val entries = arrayOf("ゲーム開始", "設定")
+            entries.forEachIndexed { i, text ->
+                val y = height * .48f + i * height * .12f
+                paint.color = if (i == titleIndex) Color.YELLOW else Color.LTGRAY
+                canvas.drawText(if (i == titleIndex) "▶ $text" else text, width/2f, y, paint)
+            }
             paint.textSize = 14f
             paint.color = Color.GRAY
-            canvas.drawText(
-                "ランダム迷宮 / 装備 / 店 / 魔法 / 罠 / セーブ",
-                width / 2f, height * .60f, paint
-            )
-
-            val best = prefs.getInt("best", 0)
-            canvas.drawText("最高スコア $best", width / 2f, height * .66f, paint)
-        }
-
-        private fun drawShop(canvas: Canvas) {
-            canvas.drawColor(Color.rgb(18, 12, 8))
-            paint.textAlign = Paint.Align.CENTER
-            paint.color = Color.YELLOW
-            paint.textSize = 32f
-            canvas.drawText("商店", width / 2f, 100f, paint)
-
-            paint.color = Color.WHITE
-            paint.textSize = 19f
-            canvas.drawText("所持金: $gold G", width / 2f, 145f, paint)
-
-            val lines = listOf(
-                "回復薬 10G",
-                "食料 8G",
-                "矢10本 12G",
-                "剣強化 40G",
-                "盾強化 40G",
-                "画面タップで戻る"
-            )
-            lines.forEachIndexed { index, text ->
-                canvas.drawText(text, width / 2f, 210f + index * 55, paint)
-            }
+            canvas.drawText("↑↓ 選択    A 決定", width/2f, height*.78f, paint)
+            canvas.drawText("最高スコア ${prefs.getInt("best",0)}", width/2f, height*.84f, paint)
         }
 
         private fun button(canvas: Canvas, x: Float, y: Float, text: String) {
@@ -1195,7 +1188,12 @@ class MainActivity : Activity() {
             if (event.action != MotionEvent.ACTION_UP) return true
 
             if (mode == 0) {
-                newGame()
+                if (event.y > height * .52f && event.y < height * .72f) {
+                    mode = 3
+                    menuPage = 4
+                    settingsIndex = 0
+                } else newGame()
+                invalidate()
                 return true
             }
 
@@ -1206,6 +1204,13 @@ class MainActivity : Activity() {
             }
 
             if (mode == 3) {
+                if (menuPage == 4) {
+                    val selected = ((event.y - height*.29f + height*.06f) / (height*.12f)).toInt().coerceIn(0,2)
+                    settingsIndex = selected
+                    if (selected == 0) soundEnabled = !soundEnabled
+                    if (selected == 1) touchControls = !touchControls
+                    saveSettings(); invalidate(); return true
+                }
                 if (menuPage != 0) {
                     menuPage = 0
                     invalidate()
@@ -1270,12 +1275,17 @@ class MainActivity : Activity() {
             if (key == android.view.KeyEvent.KEYCODE_BUTTON_A ||
                 key == android.view.KeyEvent.KEYCODE_ENTER) {
                 if (mode == 0) {
-                    newGame()
+                    if (titleIndex == 0) newGame()
+                    else { mode = 3; menuPage = 4; settingsIndex = 0; invalidate() }
                 } else if (gameOver) {
                     mode = 0
                     invalidate()
                 } else if (mode == 3) {
-                    if (menuPage == 0) {
+                    if (menuPage == 4) {
+                        if (settingsIndex == 0) soundEnabled = !soundEnabled
+                        if (settingsIndex == 1) touchControls = !touchControls
+                        saveSettings()
+                    } else if (menuPage == 0) {
                         when (menuIndex) {
                             0 -> menuPage = 1
                             1 -> menuPage = 2
@@ -1322,8 +1332,11 @@ class MainActivity : Activity() {
             // D-pad / left stick digital directions
             when (key) {
                 android.view.KeyEvent.KEYCODE_DPAD_UP -> {
-                    if (mode == 3) {
-                        menuIndex = (menuIndex - 1 + 6) % 6
+                    if (mode == 0) {
+                        titleIndex = (titleIndex + 1) % 2; invalidate()
+                    } else if (mode == 3) {
+                        if (menuPage == 4) settingsIndex = (settingsIndex + 2) % 3
+                        else if (menuPage == 0) menuIndex = (menuIndex - 1 + 6) % 6
                         invalidate()
                     } else if (mode == 1) {
                         move(0, -1)
@@ -1332,8 +1345,11 @@ class MainActivity : Activity() {
                 }
 
                 android.view.KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    if (mode == 3) {
-                        menuIndex = (menuIndex + 1) % 6
+                    if (mode == 0) {
+                        titleIndex = (titleIndex + 1) % 2; invalidate()
+                    } else if (mode == 3) {
+                        if (menuPage == 4) settingsIndex = (settingsIndex + 1) % 3
+                        else if (menuPage == 0) menuIndex = (menuIndex + 1) % 6
                         invalidate()
                     } else if (mode == 1) {
                         move(0, 1)
@@ -1342,12 +1358,20 @@ class MainActivity : Activity() {
                 }
 
                 android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    if (mode == 1) move(-1, 0)
+                    if (mode == 3 && menuPage == 4) {
+                        if (settingsIndex == 0) soundEnabled = !soundEnabled
+                        if (settingsIndex == 1) touchControls = !touchControls
+                        saveSettings(); invalidate()
+                    } else if (mode == 1) move(-1, 0)
                     return true
                 }
 
                 android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    if (mode == 1) move(1, 0)
+                    if (mode == 3 && menuPage == 4) {
+                        if (settingsIndex == 0) soundEnabled = !soundEnabled
+                        if (settingsIndex == 1) touchControls = !touchControls
+                        saveSettings(); invalidate()
+                    } else if (mode == 1) move(1, 0)
                     return true
                 }
 
