@@ -1125,6 +1125,21 @@ class MainActivity : Activity() {
             )
         }
 
+        private fun drawShop(canvas: Canvas) {
+            canvas.drawColor(Color.rgb(18, 12, 8))
+            paint.textAlign = Paint.Align.CENTER
+            paint.color = Color.YELLOW
+            paint.textSize = 32f
+            canvas.drawText("商店", width / 2f, 100f, paint)
+            paint.color = Color.WHITE
+            paint.textSize = 19f
+            canvas.drawText("所持金: $gold G", width / 2f, 145f, paint)
+            val lines = listOf("回復薬 10G", "食料 8G", "矢10本 12G", "剣強化 40G", "盾強化 40G", "B / タップで戻る")
+            lines.forEachIndexed { index, text ->
+                canvas.drawText(text, width / 2f, 210f + index * 55, paint)
+            }
+        }
+
         private fun drawSettingsPage(canvas: Canvas) {
             paint.color = Color.YELLOW
             paint.textSize = 27f
