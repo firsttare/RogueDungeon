@@ -371,15 +371,17 @@ class MainActivity : Activity() {
             // Landscape viewport: rotate the original 17x25 map into a 25x17
             // layout while keeping every tile perfectly square. No X stretching.
             val hudHeight = 132f
+            val screenTop = 44f
+            val screenBottom = if (touchControls) height * 0.70f else height * 0.90f
+            val availableScreenHeight = (screenBottom - screenTop).coerceAtLeast(1f)
+            // Original map is 17 columns x 25 rows. After a 90-degree rotation
+            // it becomes 25 columns x 17 rows. Keep every tile square.
+            val fittedCell = minOf(width / 25f, availableScreenHeight / 17f).coerceAtLeast(1f)
             val cell = fittedCell
             val dungeonWidth = 17f * cell
             val dungeonHeight = 25f * cell
             val screenDungeonWidth = dungeonHeight
             val screenDungeonHeight = dungeonWidth
-            val screenTop = 44f
-            val screenBottom = if (touchControls) height * 0.70f else height * 0.90f
-            val availableScreenHeight = (screenBottom - screenTop).coerceAtLeast(1f)
-            val fittedCell = minOf(width / 25f, availableScreenHeight / 17f).coerceAtLeast(1f)
 
             canvas.save()
             canvas.translate(width / 2f, screenTop + screenDungeonHeight / 2f)
@@ -432,26 +434,15 @@ class MainActivity : Activity() {
                 }
             }
 
-            // Stairs
+            // Stairs: use a small neutral glyph only. No large yellow outline/frame.
             val sx = left + stairX * cell
             val sy = top + stairY * cell
-
-            paint.color = Color.rgb(120, 95, 35)
-            paint.style = Paint.Style.STROKE
-            paint.strokeWidth = 7f
-            canvas.drawCircle(
-                sx + cell / 2f,
-                sy + cell / 2f,
-                cell * .38f,
-                paint
-            )
-
-            paint.color = Color.rgb(190, 170, 100)
+            paint.color = Color.rgb(185, 185, 190)
             paint.style = Paint.Style.FILL
-            paint.textSize = cell * .42f
+            paint.textSize = cell * .36f
             canvas.drawText(
-                "▼", sx + cell / 2,
-                sy + cell * .66f, paint
+                "▼", sx + cell / 2f,
+                sy + cell * .64f, paint
             )
 
             // Traps
